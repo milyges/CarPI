@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="speaker.png">resources/speaker.png</file>
+        <file alias="bluetooth_active.png">resources/bluetooth_active.png</file>
+        <file alias="bluetooth_inactive.png">resources/bluetooth_inactive.png</file>
+        <file alias="source_cd.png">resources/source_cd.png</file>
+        <file alias="source_fm.png">resources/source_fm.png</file>
+        <file alias="source_usb.png">resources/source_usb.png</file>
+        <file alias="call-start.png">resources/call-start.png</file>
+        <file alias="call-stop.png">resources/call-stop.png</file>
+        <file alias="phone.png">resources/phone.png</file>
+    </qresource>
+</RCC>

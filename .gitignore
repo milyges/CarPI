@@ -1,6 +1,8 @@
+/src/rpi-app/CarPI
 *.o
 *.tmp
 *.s#*
 *.b#*
 *.hex
 *.elf
+*.pro.*
