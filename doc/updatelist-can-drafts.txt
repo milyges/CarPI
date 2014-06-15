@@ -1,0 +1,34 @@
+Luźne wnioski:
+* Szyna CAN pracuje z szybkością 1Mbps
+* Pakiety wysyłane są na zasadzie pytanie-odpowiedź
+* Dla pakietu "pytanie" odpowiedź ma ID większą o 0x400, np. dla 0x121 ma 0x521
+* Są 4 rodzaje pakietów pojawiające się przy:
+  * Włączenie/wyłączenie radia (para: 0x01B1 i 0x05B1)
+  * Naciśnięcie klawisza na pilocie przy kierownicy (para: 0xA9 i 0x4A9)
+  * Zmiana tekstu na wyświetlaczu (para 0x121 i 0x521)
+  * Cały czas: para 0x03CF i 0x03DF
+* bajty 0xA3 w pakietach od wyświetlacza wyglądają na zapychacze do pełnych 8 bajtów
+* bajty 0x81 w pakietach od radia wyglądają na zapychacze do pełnych 8 bajtów
+* Wygląda na to że radio nie operuje na pojedynczych bajtach a na słowach 16 bitowych, wyjaśniało by to tak spore ilości stałych bajtów (np. przy obsłudze klawiszy)
+* Radio używa normalnego kodowania ASCII (i chwała mu za to :))
+
+Obsługa klawiszy z pilota:
+* Wyświetlacz wysyła komunikat o id 0x00A9, o długości 8 bajtów
+  - 0 bajt: 0x03 - wygląda na stały
+  - 1 bajt: 0x89 - jw.
+  - 2 bajt: 0x00 - jw.
+  - 3 bajt: kod klawisza :)
+  - 4-7: zapychacze 0xA3
+* Radio odpowiada pakietem o ID 0x04A9, pierwszy bajt to 0x74 a pozostałe 0x81
+
+Wyświetlanie tekstu/menu:
+* Polecenie wyświetlające tekst: pakiet 0x121, bajty: 0x10,0x19
+* Kolejne bajty (2,3), określają chyba tryb, ikonki na dole + zapisany kanał w radiu
+* Bajt 4: parametry czcionki (rozmiar, kolor, pozycja, 0x1 dla normalnego)
+* Bajty 5-7: Trzy pierwsze litery tekstu
+
+* Ciąg dalszy tekstu: Pakiet 0x121, pierwszy bajt 0x21
+* Bajty 1-5: Tekst w ASCII
+* Bajty 6-7:
+
+ 

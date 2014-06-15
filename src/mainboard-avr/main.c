@@ -125,8 +125,13 @@ int main(void) {
 					_delay_ms(1000);
 				}
 				power_set_main(0);
-				power_set_monitor(0); 
-				power_sleep();
+				power_set_monitor(0);
+				_delay_ms(500);
+				
+				/* Jeżeli między czasie nie zostało włączone radio ani zapłon - usypiamy procka */
+				if ((!power_radio_state()) && (!power_ignition_state())) {
+					power_sleep();
+				}
 			}
 			
 			old_power_state = __registers[REG_POWER_STATE];
