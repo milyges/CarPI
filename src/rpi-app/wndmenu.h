@@ -2,11 +2,11 @@
 #define WNDMENU_H
 
 #include <QDialog>
-#include <QList>
 #include <QLabel>
+#include <QList>
 
 namespace Ui {
-class WndMenu;
+    class WndMenu;
 }
 
 class WndMenu : public QDialog {
@@ -20,19 +20,17 @@ protected:
     void changeEvent(QEvent *e);
     
 private:
-    Ui::WndMenu *ui;
+    Ui::WndMenu * _ui;
     QList<QLabel*> _items;
-    int _active_item;
+    int _selectedItem;
 
-    void _clear_items(void);
-    void _set_active(int num);
-
+    void _clearItems(void);
+    void _setSelected(int num);
 
 public slots:
-    void show_menu(int items);
-    void hide_menu(void);
-    void set_menu_item(int idx, QString text, bool is_checked);
-
+    void showMenu(int items);
+    void hideMenu(void);
+    void setMenuItem(int itemno, QString text, bool isSelected);
 };
 
 #endif // WNDMENU_H

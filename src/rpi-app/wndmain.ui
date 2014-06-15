@@ -33,11 +33,22 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-	background-color: #444;
-	width: 20px;
+	background-color: #ffa500;
+    margin: 0.5px;
+	width: 20px;   
+    border-radius: 2px;
 }
 
+QMenu {
+	font-size: 20px;
+	background-color: #000;
+	color: #ddd;
+}
 
+QMenu::item::selected {
+	background-color: #ffa500;
+    color: #111;
+}
 </string>
   </property>
   <widget class="QWidget" name="centralWidget">
@@ -185,8 +196,11 @@ QProgressBar::chunk {
     </item>
     <item>
      <widget class="QStackedWidget" name="stackedWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
       <widget class="QWidget" name="pageNavit"/>
-      <widget class="QWidget" name="page_2"/>
+      <widget class="QWidget" name="pageDials"/>
      </widget>
     </item>
    </layout>

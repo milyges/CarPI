@@ -2,16 +2,15 @@
 #define CHANGEREMULATOR_H
 
 #include <QObject>
-#include <QFile>
-#include <QByteArray>
-#include <stdint.h>
+#include <QThread>
+#include <QList>
 #include <QTimer>
+#include <QTime>
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
-#include <QList>
-#include <QTime>
+#include <stdint.h>
 
-enum {
+enum ChangerEmulatorState {
     cdcStateBooting1 = 1,
     cdcStateBooting2,
     cdcStateStandby,
@@ -19,24 +18,24 @@ enum {
     cdcStatePause
 };
 
-enum {
+enum ChangerEmulatorCDState {
     cdStateNoCD = 0x01,
     cdStatePaused = 0x03,
     cdStateLoadingTrack = 0x04,
-    cdStatePaying = 0x05,
+    cdStatePlaying = 0x05,
     cdStateCueing = 0x07,
     cdStateRewinding = 0x09,
     cdStateSearchingTrack = 0x0A
 };
 
-enum {
+enum ChangerEmulatorTrayState {
     trayStateNoTray = 0x02,
     trayStateCDReady = 0x03,
     trayStateLoadingCD = 0x04,
     trayStateUnloadingCD = 0x05
 };
 
-enum {
+enum ChangerEmulatorTrackState {
     trackChangeEntering = 0x10,
     trackChangeEntered = 0x14,
     trackChangeLeavingCD = 0x40,
@@ -46,68 +45,71 @@ enum {
 class ChangerEmulator : public QObject {
     Q_OBJECT
 private:
-    uint8_t _frame_id;
+    static ChangerEmulator * _instance;
+    static QThread _workerThread;
+
+    uint8_t _frameID;
     QSerialPort * _serial;
-    int _cdc_state;
-    int _current_cd;
-    int _cdc_reset_timeout;
-    int _cd_state;
-    int _tray_state;
-    bool _random_status;
-    uint8_t _cd_bitmap;
 
-    int _track_num;
-    QTime _track_time;
-    QTime _cd_time;
+    QList<QByteArray> _sendQueue;
+    QList<QByteArray> _recvQueue;
 
-    QList<QByteArray> _send_queue;
-    QList<QByteArray> _recv_queue;
-    QTimer * _cdc_io_timer;
-    QTimer * _cdc_watchdog_timer;
+    QTimer * _ioTimer;
+    QTimer * _watchdogTimer;
+    int _watchdogTimeout;
 
-    bool _send_packet(QByteArray &data);
 
-    void _send_status_packet(void);
-    void _send_current_state(void);
-    void _send_random_status(void);
-    void _send_tray_status(void);
-    void _send_cd_summary(void);
-    void _send_cd_operation(void);
-    void _send_cd_check(bool present);
-    void _send_playing_state(void);
-    void _send_track_change_frame(int type, int tracknum);
+    enum ChangerEmulatorState _changerState;
+    enum ChangerEmulatorCDState _cdState;
+    enum ChangerEmulatorTrayState _trayState;
 
-    void _recv_command(QByteArray & packet);
+    int _currentCD;
+    int _currentTrack;
+    bool _randomPlaying;
+    int _cdBitmap;
+    QTime _trackTime;
+    QTime _cdTime;
+
+    explicit ChangerEmulator(QObject *parent = 0);
+    ~ChangerEmulator();
+
+    void _reset(void);
+
+    bool _packetSend(QByteArray &data);
+    void _sendCurrentState(void);
+
+    void _packetSendStatus(void);
+    void _packetSendRandomStatus(void);
+    void _packetSendTrayStatus(void);
+    void _packetSendCDSummary(void);
+    void _packetSendCDOperation(void);
+    void _packetSendTrackChange(enum ChangerEmulatorTrackState type, int num);
+    void _packetSendPlayingStatus(void);
+
+    void _packetRecvCommand(QByteArray & data);
 
     static int _bcd(int num);
 
 private slots:
-    void _recv_packet(void);
-    void _cdc_io_tick(void);
-    void _cdc_watchdog_tick(void);
-
+    void _packetRecv(void);
+    void _ioTimerTick(void);
+    void _watchdogTick(void);
 
 public:
-    explicit ChangerEmulator(QObject *parent = 0);
-    ~ChangerEmulator();
-    void start(void);
-    void stop(void);
-    void reset(void);
+    static ChangerEmulator * getInstance(void);
 
-    void next_track(void);
-    void prev_track(void);
-    void load_cd(int num);
-
+    
 signals:
-    void playback_stopped(void);
-    void playback_started(void);
-    void playback_paused(void);
-    void playback_next_pressed(void);
-    void playback_prev_pressed(void);
-    void load_cd_pressed(int num);
+    void playbackStopped(void);
+    void playbackStarted(void);
+    void playbackPaused(void);
+
+    void nextTrack(void);
+    void prevTrack(void);
+    void loadCD(int num);
 
 public slots:
-    
+
 };
 
 #endif // CHANGEREMULATOR_H

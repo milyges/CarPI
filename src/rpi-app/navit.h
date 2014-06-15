@@ -4,27 +4,45 @@
 #include <QObject>
 #include <QX11EmbedContainer>
 #include <QProcess>
+#include <QWidget>
+#include <QTimer>
+#include <stdint.h>
+
+enum NavitKey {
+    navitUp = 1,
+    navitRight,
+    navitDown,
+    navitLeft,
+    navitReturn,
+    navitEscape
+};
 
 class Navit : public QObject {
     Q_OBJECT
 private:
-    QX11EmbedContainer * _container;
+    static Navit * _instance;
+
     QProcess * _process;
-    bool _started;
+    bool _isStarted;
+    uint32_t _windowID;
+
+    explicit Navit(QObject *parent = 0);
+    ~Navit(void);
+
+    uint32_t  _searchWindow(void);
 
 private slots:
-    void _navit_finished(int err, QProcess::ExitStatus exitStatus);
+    void _navitFinished(int err, QProcess::ExitStatus exitStatus);
 
 public:
-    explicit Navit(QWidget *parent = 0);
-    ~Navit();
+    static Navit * getInstance(void);
     void start(void);
     void stop(void);
+    void sendKey(enum NavitKey key);
 
-signals:
-    
-public slots:
-    
+    void show(void);
+
+    uint32_t getWindowId(void);
 };
 
 #endif // NAVIT_H

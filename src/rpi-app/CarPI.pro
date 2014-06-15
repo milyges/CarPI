@@ -1,45 +1,51 @@
 #-------------------------------------------------
 #
-# Project created by QtCreator 2014-01-21T20:04:59
+# Project created by QtCreator 2014-03-02T21:18:23
 #
 #-------------------------------------------------
 
-QT += core gui phonon
+QT       += core gui phonon
 CONFIG += serialport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = CarPI
 TEMPLATE = app
-
 LIBS += -lwiringPi
+
 
 SOURCES += main.cpp\
         wndmain.cpp \
-    displayemulator.cpp \
-    navit.cpp \
+    carpi.cpp \
     mainboard.cpp \
+    displayemulator.cpp \
+    wndvolume.cpp \
     wndmenu.cpp \
+    bluetooth.cpp \
+    wndcall.cpp \
     changeremulator.cpp \
     mp3player.cpp \
-    wndvolume.cpp \
-    bluetooth.cpp \
-    wndcall.cpp
+    navit.cpp \
+    carpidial.cpp \
+    elm327.cpp
 
 HEADERS  += wndmain.h \
-    displayemulator.h \
-    navit.h \
+    carpi.h \
     mainboard.h \
+    displayemulator.h \
+    wndvolume.h \
     wndmenu.h \
+    bluetooth.h \
+    wndcall.h \
     changeremulator.h \
     mp3player.h \
-    wndvolume.h \
-    bluetooth.h \
-    wndcall.h
+    navit.h \
+    carpidial.h \
+    elm327.h
 
 FORMS    += wndmain.ui \
-    wndmenu.ui \
     wndvolume.ui \
+    wndmenu.ui \
     wndcall.ui
 
 RESOURCES += \

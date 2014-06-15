@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>325</width>
+    <width>326</width>
     <height>84</height>
    </rect>
   </property>
@@ -68,7 +68,7 @@
         <string/>
        </property>
        <property name="pixmap">
-        <pixmap resource="resources.qrc">:/icons/call-start.png</pixmap>
+        <pixmap resource="resources.qrc">:/resources/icons/call-start.png</pixmap>
        </property>
       </widget>
      </item>
@@ -103,7 +103,7 @@
         <string/>
        </property>
        <property name="pixmap">
-        <pixmap resource="resources.qrc">:/icons/call-stop.png</pixmap>
+        <pixmap resource="resources.qrc">:/resources/icons/call-stop.png</pixmap>
        </property>
       </widget>
      </item>

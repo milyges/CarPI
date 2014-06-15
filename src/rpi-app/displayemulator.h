@@ -2,10 +2,10 @@
 #define DISPLAYEMULATOR_H
 
 #include <QObject>
+#include <QThread>
 #include <QTimer>
 #include <QSocketNotifier>
 #include <QStringList>
-#include <stdint.h>
 
 #include <net/if.h>
 #include <sys/types.h>
@@ -14,6 +14,8 @@
 
 #include <linux/can.h>
 #include <linux/can/raw.h>
+
+#define DISPLAY_CAN_INTERFACE      "can0"
 
 /* Ikonki na wyświetlaczu */
 #define DISPLAY_ICON_NO_NEWS       (1 << 0)
@@ -35,49 +37,58 @@
 #define DISPLAY_KEY_ROLL_DOWN      0x0141
 #define DISPLAY_KEY_HOLD_MASK      (0x80 | 0x40)
 
+enum DisplaySyncState {
+    displaySyncOK = 0x01,   /* Synchronizacja OK */
+    displaySyncPending,     /* Synchronizacja w trakcie negocjacji */
+    displaySyncLost         /* Synchronizacja utracona */
+};
+
 class DisplayEmulator : public QObject {
     Q_OBJECT
 private:
-    int _socket_fd;
-    QSocketNotifier * _socket_notifier;
-    QTimer * _sync_timer;
-    int _sync_timeout;
+    static DisplayEmulator * _instance;
+    static QThread _workerThread;
 
-    QTimer * _blink_timer;
-    QStringList _blink_texts;
-    int _blink_idx;
+    int _socketFd;
+    QSocketNotifier * _socketNotifier;
+    QTimer * _syncTimer;
+    enum DisplaySyncState _syncState;
 
-    int _socket_send(struct can_frame * frame);
-    void _send_reply(struct can_frame * frame, bool last = true);
-    void _register_id(uint16_t id);
+    bool _menuVisible;
 
-    void _packet_recv_sync(struct can_frame * frame);
-    void _packet_recv_dispctrl(struct can_frame * frame);
-    void _packet_recv_settext(struct can_frame * frame);
-
-    void _can_reset(void);
-
-    void _blink_add_text(QString text, int pos);
-
-private slots:
-    void _socket_recv(int fd);
-    void _sync_timer_tick(void);
-    void _blink_timer_tick(void);
-
-public:
-    explicit DisplayEmulator(const char * can_iface, QObject *parent = 0);
+    explicit DisplayEmulator(QObject *parent = 0);
     ~DisplayEmulator();
 
-    void set_state(bool enabled);
-    void send_key(int keycode);
+    void _socketSend(struct can_frame * frame);
+    void _packetSendReply(struct can_frame * frame, bool last = true);
+
+
+    void _packetRecvSync(struct can_frame * frame);
+    void _packetRecvDisplayControl(struct can_frame * frame);
+    void _packetRecvSetText(struct can_frame * frame);
+
+    void _registerCanId(int id);
+
+private slots:
+    void _socketRecv(int fd);
+    void _syncTimeout(void);
+
+    void _packetSendDisplayStatus(bool enabled);
+
+public:
+    static DisplayEmulator * getInstance(void);
 
 signals:
-    void state_change_request(bool enabled);
-    void icons_changed(uint16_t icon_mask);
-    void radio_text_changed(QString text, int chan);
-    void radio_menu_show(int items);
-    void radio_menu_hide(void);
-    void radio_menu_set_item(int idx, QString val, bool checked);
+    void displayStatusChanged(bool enabled);
+    void displayIconsChanged(int mask);
+    void displayTextChanged(QString text);
+    void displayMenuShow(int items);
+    void displayMenuItemUpdate(int item, QString text, bool isSelected);
+    void displayMenuHide(void);
+
+public slots:
+    void radioPowerChanged(bool enabled);
+    void sendKeyEvent(int keycode);
 };
 
 #endif // DISPLAYEMULATOR_H

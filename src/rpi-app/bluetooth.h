@@ -5,45 +5,51 @@
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 #include <QTimer>
+#include "mainboard.h"
 
-#include <stdint.h>
-
-enum {
-    callStatusIdle = 0,
-    callStatusTalking,
-    callStatusIncomimg,
-    callStatusOutgoing
+enum BluetoothCallState {
+    callStateIdle = 0,
+    callStateTalking,
+    callStateIncoming,
+    callStateOutgoing
 };
 
 class Bluetooth : public QObject {
     Q_OBJECT
 private:
+    static Bluetooth * _instance;
+
+    enum BluetoothCallState _callState;
+    int _connectionState;
+
+    MainBoard * _mainboard;
     QSerialPort * _serial;
-    QTimer * _reconnect_timer;
-    uint8_t _connection_status;
-    int _call_status;
+    QTimer * _reconnectTimer;
 
-    QString _send_command(QString cmd);
-private slots:
-    void _reconnect_last_device(void);
-
-public:
     explicit Bluetooth(QObject *parent = 0);
     ~Bluetooth();
 
-    int call_status(void);
+    QString _sendCommand(QString command);
+
+private slots:
+    void _tryReconnectLast(void);
+    void _bluetoothInterrupt(void);
+
+public:
+    static Bluetooth * getInstance(void);
+    enum BluetoothCallState callState(void);
+    bool isConnected(void);
 
 signals:
-    void state_changed(bool connected);
-    void call_status_changed(int newstatus);
+    void connectionStateChanged(bool isConnected);
+    void callStateChanged(enum BluetoothCallState callState);
 
 public slots:
-    void new_event(void);
+    void acceptCall(void);
+    void rejectCall(void);
+    void terminateCall(void);
+    void dialTo(QString number);
 
-    void accept_call(void);
-    void reject_call(void);
-    void terminate_call(void);
-    void dial(QString number);
 };
 
 #endif // BLUETOOTH_H

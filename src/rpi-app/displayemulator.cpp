@@ -1,9 +1,6 @@
 #include "displayemulator.h"
 #include <QDebug>
 #include <QProcess>
-#include <cerrno>
-#include <cstring>
-#include <unistd.h>
 
 #define CAN_ID_SYNC_DISPLAY        0x3CF  /* Pakiet synchronizacyjny, wyświetlacz -> HU */
 #define CAN_ID_SYNC_HU             0x3DF  /* Pakiet synchronizacyjny, HU -> wyświetlacz */
@@ -18,143 +15,57 @@
 #define DISPLAY_FILL_BYTE          0xA3
 #define HU_FILL_BYTE               0x81
 
-DisplayEmulator::DisplayEmulator(const char * can_iface, QObject *parent) : QObject(parent) {
+DisplayEmulator * DisplayEmulator::_instance = NULL;
+QThread DisplayEmulator::_workerThread;
+
+DisplayEmulator::DisplayEmulator(QObject *parent) : QObject(parent) {
     struct sockaddr_can addr;
     struct ifreq ifr;
 
-    _can_reset();
-
-    if ((_socket_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
+    if ((_socketFd = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
         qDebug("DisplayEmulator: socket(): fail");
         return;
     }
 
-    strcpy(ifr.ifr_name, can_iface);
-    ioctl(_socket_fd, SIOCGIFINDEX, &ifr);
+    strcpy(ifr.ifr_name, DISPLAY_CAN_INTERFACE);
+    ioctl(_socketFd, SIOCGIFINDEX, &ifr);
 
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
-    if (bind(_socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    if (bind(_socketFd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         qDebug("DisplayEmulator: Socket bind() failed!");
-        close(_socket_fd);
+        close(_socketFd);
         return;
     }
 
-    _socket_notifier = new QSocketNotifier(_socket_fd, QSocketNotifier::Read, this);
-    connect(_socket_notifier, SIGNAL(activated(int)), this, SLOT(_socket_recv(int)));
-    _socket_notifier->setEnabled(true);
+    _socketNotifier = new QSocketNotifier(_socketFd, QSocketNotifier::Read, this);
+    connect(_socketNotifier, SIGNAL(activated(int)), this, SLOT(_socketRecv(int)));
+    _socketNotifier->setEnabled(true);
 
-    _sync_timer = new QTimer(this);
-    _sync_timer->setSingleShot(false);
-    _sync_timer->setInterval(100);
-    connect(_sync_timer, SIGNAL(timeout()), this, SLOT(_sync_timer_tick()));
-    _sync_timeout = 0;
+    _syncState = displaySyncLost;
+    _syncTimer = new QTimer(this);
+    _syncTimer->setInterval(1000);
+    _syncTimer->setSingleShot(true);
+    connect(_syncTimer, SIGNAL(timeout()), this, SLOT(_syncTimeout()));
 
-    _blink_timer = new QTimer(this);
-    _blink_timer->setInterval(2000);
-    _blink_timer->setSingleShot(false);
-    connect(_blink_timer, SIGNAL(timeout()), this, SLOT(_blink_timer_tick()));
+    connect(this, SIGNAL(displayStatusChanged(bool)), this, SLOT(_packetSendDisplayStatus(bool)));
 
+    _menuVisible = false;
 }
 
 DisplayEmulator::~DisplayEmulator() {
-    delete _socket_notifier;
-    delete _sync_timer;
+    delete _syncTimer;
+    delete _socketNotifier;
+    close(_socketFd);
 }
 
-void DisplayEmulator::set_state(bool enabled) {
-    struct can_frame frame;
-
-    frame.can_id = CAN_ID_DISPLAY_STATUS;
-    frame.can_dlc = 8;
-    frame.data[0] = (enabled) ? 0x02 : 0x00;
-    frame.data[1] = 0x64;
-    frame.data[2] = 0x0F;
-    frame.data[3] = DISPLAY_FILL_BYTE;
-    frame.data[4] = DISPLAY_FILL_BYTE;
-    frame.data[5] = DISPLAY_FILL_BYTE;
-    frame.data[6] = DISPLAY_FILL_BYTE;
-    frame.data[7] = DISPLAY_FILL_BYTE;
-
-    _socket_send(&frame);
+void DisplayEmulator::_socketSend(can_frame *frame) {
+    //qDebug("DisplayEmulator: _socketSend: id=%x, data=%02X%02X%02X%02X%02X%02X%02X%02X", frame->can_id, frame->data[0], frame->data[1], frame->data[2], frame->data[3], frame->data[4], frame->data[5], frame->data[6], frame->data[7]);
+    write(_socketFd, frame, sizeof(struct can_frame));
 }
 
-void DisplayEmulator::send_key(int keycode) {
-    struct can_frame frame;
-
-    frame.can_id = 0x0A9;
-    frame.can_dlc = 8;
-    frame.data[0] = 0x03;
-    frame.data[1] = 0x89;
-    frame.data[2] = (keycode >> 8);
-    frame.data[3] = (keycode & 0xFF);
-    frame.data[4] = DISPLAY_FILL_BYTE;
-    frame.data[5] = DISPLAY_FILL_BYTE;
-    frame.data[6] = DISPLAY_FILL_BYTE;
-    frame.data[7] = DISPLAY_FILL_BYTE;
-
-    _socket_send(&frame);
-}
-
-
-int DisplayEmulator::_socket_send(struct can_frame * frame) {
-    //qDebug("DisplayEmulator: _socket_send: id=%x, data=%02X%02X%02X%02X%02X%02X%02X%02X", frame->can_id, frame->data[0], frame->data[1], frame->data[2], frame->data[3], frame->data[4], frame->data[5], frame->data[6], frame->data[7]);
-    return write(_socket_fd, frame, sizeof(struct can_frame));
-}
-
-void DisplayEmulator::_socket_recv(int fd) {
-    struct can_frame frame;
-    int len;
-
-    if (fd != _socket_fd)
-        return;
-
-    len = read(_socket_fd, &frame, sizeof(struct can_frame));
-    if (len <= 0)
-        return;
-
-    //qDebug("DisplayEmulator: _socket_recv: id=%x, data=%02X%02X%02X%02X%02X%02X%02X%02X", frame.can_id, frame.data[0], frame.data[1], frame.data[2], frame.data[3], frame.data[4], frame.data[5], frame.data[6], frame.data[7]);
-    switch(frame.can_id) {
-        case CAN_ID_SYNC_HU: _packet_recv_sync(&frame); break;
-        case CAN_ID_DISPLAY_CONTROL: _packet_recv_dispctrl(&frame); break;
-        case CAN_ID_SET_TEXT: _packet_recv_settext(&frame); break;
-    }
-}
-
-void DisplayEmulator::_sync_timer_tick(void) {
-    if (_sync_timeout == 0) { /* Utrata synchronizacji */
-        qDebug() << "DisplayEmulator: Lost sync";
-        _sync_timer->stop();
-        _can_reset();
-    }
-    else if (_sync_timeout < 0) {
-        _sync_timeout = 50;
-        _register_id(CAN_ID_DISPLAY_STATUS);
-        _register_id(CAN_ID_KEY_PRESSED);
-    }
-    else {
-        _sync_timeout--;
-    }
-}
-
-void DisplayEmulator::_blink_timer_tick() {
-    if (!_blink_texts.size()) { /* Koniec migania */
-        _blink_timer->stop();
-        _blink_idx = 0;
-        return;
-    }
-
-    if (_blink_idx >= _blink_texts.size()) {
-        _blink_idx = 0;
-    }
-
-    emit radio_text_changed(_blink_texts.at(_blink_idx), 0);
-
-    _blink_idx++;
-}
-
-void DisplayEmulator::_send_reply(struct can_frame * frame, bool last) {
+void DisplayEmulator::_packetSendReply(can_frame *frame, bool last) {
     int i;
 
     frame->can_id |= CAN_ID_REPLY_FLAG;
@@ -173,10 +84,195 @@ void DisplayEmulator::_send_reply(struct can_frame * frame, bool last) {
     for( ; i < 8; i++)
         frame->data[i] = DISPLAY_FILL_BYTE;
 
-    _socket_send(frame);
+    _socketSend(frame);
 }
 
-void DisplayEmulator::_register_id(uint16_t id) {
+void DisplayEmulator::_packetSendDisplayStatus(bool enabled) {
+    struct can_frame frame;
+
+    frame.can_id = CAN_ID_DISPLAY_STATUS;
+    frame.can_dlc = 8;
+    frame.data[0] = (enabled) ? 0x02 : 0x00;
+    frame.data[1] = 0x64;
+    frame.data[2] = 0x0F;
+    frame.data[3] = DISPLAY_FILL_BYTE;
+    frame.data[4] = DISPLAY_FILL_BYTE;
+    frame.data[5] = DISPLAY_FILL_BYTE;
+    frame.data[6] = DISPLAY_FILL_BYTE;
+    frame.data[7] = DISPLAY_FILL_BYTE;
+
+    _socketSend(&frame);
+}
+
+void DisplayEmulator::_packetRecvSync(can_frame * frame) {
+    if (frame->data[0] == 0x79) { /* PING od radia, odsyłamy PONG */
+        frame->can_id = CAN_ID_SYNC_DISPLAY;
+        frame->data[0] = 0x69;
+        frame->data[1] = 0x00;
+        frame->data[2] = DISPLAY_FILL_BYTE;
+        frame->data[3] = DISPLAY_FILL_BYTE;
+        frame->data[4] = DISPLAY_FILL_BYTE;
+        frame->data[5] = DISPLAY_FILL_BYTE;
+        frame->data[6] = DISPLAY_FILL_BYTE;
+        frame->data[7] = DISPLAY_FILL_BYTE;
+        _socketSend(frame);
+        _syncTimer->start(); /* Resetujemy timeout */
+
+        if (_syncState == displaySyncPending) {
+            _registerCanId(CAN_ID_DISPLAY_STATUS);
+            _registerCanId(CAN_ID_KEY_PRESSED);
+            _syncState = displaySyncOK;
+        }
+    }
+    else if (frame->data[0] == 0x7A) { /* Początek synchronizacji */
+        frame->can_id = CAN_ID_SYNC_DISPLAY;
+        frame->data[0] = 0x61;
+        frame->data[1] = 0x11;
+        frame->data[2] = 0x00;
+        frame->data[3] = DISPLAY_FILL_BYTE;
+        frame->data[4] = DISPLAY_FILL_BYTE;
+        frame->data[5] = DISPLAY_FILL_BYTE;
+        frame->data[6] = DISPLAY_FILL_BYTE;
+        frame->data[7] = DISPLAY_FILL_BYTE;
+        _socketSend(frame);
+        _syncState = displaySyncPending;
+    }
+}
+
+void DisplayEmulator::_packetRecvDisplayControl(can_frame *frame) {
+    bool enabled;
+
+    if (frame->data[0] != 0x70) { /* 0x70 = Rejestracja funkcji */
+        enabled = (frame->data[2] == 0x02) ? true : false;
+        emit displayStatusChanged(enabled);
+        //qDebug() << "DisplayEmulator: statusChanged to" << enabled;
+    }
+
+    _packetSendReply(frame);
+}
+
+void DisplayEmulator::_packetRecvSetText(can_frame *frame) {
+    static char buf[32];
+    static int bufpos = 0;
+    static int iconsmask, mode, chan, location;
+    static QString longText;
+    int ptr, max, idx;
+    bool selected, fullscreen;
+    char c;
+    QString text;
+
+    if (frame->data[0] == 0x70) { /* Rejestracja funkcji */
+        _packetSendReply(frame);
+    }
+    else if (frame->data[0] == 0x04) { /* Ustaw ikony */
+        /* TODO!!! */
+        qDebug() << "DisplayEmulator: TODO: Set icons";
+        //qDebug() << frame->data[3];
+        //iconsmask = frame->data[3];
+        //mode = frame->data[5];
+        //emit displayIconsChanged(iconsmask);
+        _packetSendReply(frame);
+    }
+    else if (frame->data[0] == 0x10) { /* Ustaw tekst */
+        bufpos = 0;
+        buf[0] = '\0';
+
+        if (frame->data[1] == 0x1C) { /* Teskt + Ikony */
+            iconsmask = frame->data[3];
+            mode = frame->data[5];
+            ptr = 6;
+            emit displayIconsChanged(iconsmask);
+        }
+        else if (frame->data[1] == 0x19) { /* Tylko tekst */
+            ptr = 3;
+        }
+
+        chan = frame->data[ptr++] & 7;
+        location = frame->data[ptr++];
+
+        for( ; ptr < 8; ptr++) {
+            buf[bufpos++] = frame->data[ptr];
+        }
+
+        _packetSendReply(frame, false);
+    }
+    else if(frame->data[0] > 0x20) { /* Ciąg dalszy poprzednich danych */
+        ptr = 1;
+        while(ptr < 8) {
+            buf[bufpos] = frame->data[ptr++];
+            if (!buf[bufpos])
+                break;
+
+            bufpos++;
+        }
+
+        if (ptr < 8) { /* Koniec danych */
+            _packetSendReply(frame, true);
+
+            /* Obrabiamy dane */
+            for(ptr = 0; ptr < 12; ptr++) {
+                c = char(buf[9 + ptr] & 0x7F);
+                switch(c) {
+                    case 0x07: text += QString::fromUtf8("⇧"); break;
+                    case 0x08: text += QString::fromUtf8("⇩"); break;
+                    case 0x09: text += QString::fromUtf8("⇨"); break;
+                    case 0x0A: text += QString::fromUtf8("⇦"); break;
+                    default: text += c;
+                }
+            }
+
+            //qDebug() << " loc =" << location << " buf = " << buf << "text =" << text;
+
+            max = (location >> 5) & 7;
+            idx = (location >> 2) & 7;
+            selected = ((location & 0x01) == 0x01);
+            fullscreen = ((location & 0x02) == 0x02);
+
+            if ((max > 0) && (fullscreen) && (!selected)) { /* Tekst migacjący (np. NEWS -> RMF FM -> NEWS...) */
+
+            }
+            else {
+
+            }
+
+            if ((max > 0) && (!fullscreen)) { /* Tryb menu */
+                if (!_menuVisible) {
+                    emit displayMenuShow(max + 1);
+                    _menuVisible = true;
+                }
+
+                emit displayMenuItemUpdate(idx, text, selected);
+                return;
+            }
+            else { /* Menu niewidoczne */
+                if (_menuVisible) {
+                    emit displayMenuHide();
+                    _menuVisible = false;
+                }
+            }
+
+            if ((max == 0) && (selected)) { /* Zwykły tekst */
+                emit displayTextChanged(text);
+            }
+            else if ((fullscreen) && (selected)) { /* Tryb pełnoekranowy */
+                if (idx == 0) {
+                    longText.clear();
+                }
+
+                longText += text.left(8);
+
+                if (idx == max) {
+                    emit displayTextChanged(longText);
+                }
+            }
+        }
+        else {
+            _packetSendReply(frame, false);
+        }
+    }
+}
+
+void DisplayEmulator::_registerCanId(int id) {
     struct can_frame frame;
 
     frame.can_id = id;
@@ -190,196 +286,82 @@ void DisplayEmulator::_register_id(uint16_t id) {
     frame.data[6] = DISPLAY_FILL_BYTE;
     frame.data[7] = DISPLAY_FILL_BYTE;
 
-    _socket_send(&frame);
+    _socketSend(&frame);
 }
 
-void DisplayEmulator::_packet_recv_sync(can_frame * frame) {
-    if (frame->data[0] == 0x79) { /* Zwykły PING */
-        frame->can_id = CAN_ID_SYNC_DISPLAY;
-        frame->data[0] = 0x69;
-        frame->data[1] = 0x00;
-        frame->data[2] = DISPLAY_FILL_BYTE;
-        frame->data[3] = DISPLAY_FILL_BYTE;
-        frame->data[4] = DISPLAY_FILL_BYTE;
-        frame->data[5] = DISPLAY_FILL_BYTE;
-        frame->data[6] = DISPLAY_FILL_BYTE;
-        frame->data[7] = DISPLAY_FILL_BYTE;
-        _socket_send(frame);
+void DisplayEmulator::_socketRecv(int fd) {
+    struct can_frame frame;
+    int len;
 
-        if (_sync_timeout > 0) /* Podbijamy licznik */
-            _sync_timeout = 50;
-    }
-    else if (frame->data[0] == 0x7A) { /* Rozpoczęcie synchronizacji */
-        //qDebug("Sync start");
-        frame->can_id = CAN_ID_SYNC_DISPLAY;
-        frame->data[0] = 0x61;
-        frame->data[1] = 0x11;
-        frame->data[2] = 0x00;
-        frame->data[3] = DISPLAY_FILL_BYTE;
-        frame->data[4] = DISPLAY_FILL_BYTE;
-        frame->data[5] = DISPLAY_FILL_BYTE;
-        frame->data[6] = DISPLAY_FILL_BYTE;
-        frame->data[7] = DISPLAY_FILL_BYTE;
-        _socket_send(frame);
-
-        _sync_timeout = -1;
-        _sync_timer->start();
-    }
-}
-
-void DisplayEmulator::_packet_recv_dispctrl(can_frame * frame) {
-    bool enabled;
-
-    if (frame->data[0] == 0x70) {
-        _send_reply(frame);
+    if (fd != _socketFd) { /* Cos jest nie tak */
         return;
     }
 
-    enabled = (frame->data[2] == 0x02) ? true : false;
-    emit state_change_request(enabled);
+    len = read(fd, &frame, sizeof(struct can_frame));
+    if (len <= 0) /* Błąd odczytu */
+        return;
 
-    _send_reply(frame);
-}
+    //qDebug("DisplayEmulator: _socketRecv: id=%x, data=%02X%02X%02X%02X%02X%02X%02X%02X", frame.can_id, frame.data[0], frame.data[1], frame.data[2], frame.data[3], frame.data[4], frame.data[5], frame.data[6], frame.data[7]);
 
-void DisplayEmulator::_packet_recv_settext(can_frame *frame) {
-    static char buf[32];
-    static int bufptr = 0;
-    static uint8_t icons, mode, chan, loc;
-    static bool menu_visible = false;
-    static QString long_text;
-    int ptr = 0, max, idx;
-    bool fullscreen, checked;
-    char c;
-
-    if (frame->data[0] == 0x70) {
-        _send_reply(frame);
-    }
-    else if (frame->data[0] == 0x04) { /* Ustaw tylko ikonki */
-        _send_reply(frame);
-    }
-    else if (frame->data[0] == 0x10) { /* Ustaw tekst */
-        bufptr = 0x00;
-        buf[0] = '\0';
-        if (frame->data[1] == 0x1C) { /* Tekst + ikony */
-            icons = frame->data[3];
-            mode = frame->data[5];            
-            ptr = 6;
-            emit icons_changed(icons);
-        }
-        else if (frame->data[1] == 0x19) { /* Sam tekst */
-            ptr = 3;
-        }
-
-        chan = frame->data[ptr++] & 7;
-        loc = frame->data[ptr++];
-
-        for(; ptr < 8; ptr++) {
-            buf[bufptr++] = frame->data[ptr];
-        }
-        _send_reply(frame, false);
-    }
-    else if (frame->data[0] > 0x20) {
-        ptr = 1;
-        while(ptr < 8) {
-              buf[bufptr] = frame->data[ptr++];
-              if (!buf[bufptr])
-                  break;
-
-              bufptr++;
-        }
-
-        if (ptr < 8) { /* Koniec danych */
-            _send_reply(frame);
-            QString text;
-            /* Interesuje nas tylko wersja dla nowych wyświetlaczy */
-            for(ptr = 0; ptr < 12; ptr++) {
-                c = char(buf[9 + ptr] & 0x7F);
-                if (c < ' ') {
-                    switch (c) {
-                        case 0x07: text += QString::fromUtf8("⇧"); break;
-                        case 0x08: text += QString::fromUtf8("⇩"); break;
-                        case 0x09: text += QString::fromUtf8("⇨"); break;
-                        case 0x0A: text += QString::fromUtf8("⇦"); break;
-                        default: {
-                            qDebug() << "DisplayEmulator: unknown special char " << (int)c;
-                            text += ' ';
-                        }
-                    }
-                }
-                else {
-                    text += c;
-                }
-            }
-
-            //qDebug() << " loc =" << loc << " buf = " << buf << "text =" << text;
-            max = (loc >> 5) & 7;
-            idx = (loc >> 2) & 7;
-            checked = ((loc & 0x01) == 0x01);
-            fullscreen = ((loc & 0x02) == 0x02);
-
-            //qDebug() << "max =" << max << " idx =" << idx << " checked =" << checked << "fs =" << fullscreen;
-
-            if ((max > 0) && (fullscreen) && (!checked)) { /* Tekst migający */
-                //qDebug() << "blink" << text;
-                _blink_add_text(text, idx);
-            }
-            else { /* Teskt nie migający */
-                if (!_blink_texts.isEmpty())
-                    _blink_texts.clear();
-            }
-
-            if ((max > 0) && (!fullscreen)) { /* Tryb Menu */
-                if (!menu_visible) {
-                    emit radio_menu_show(max + 1);
-                    menu_visible = true;
-                }
-                emit radio_menu_set_item(idx, text, checked);
-                return;
-            }
-            else { /* Bez menu */
-                if (menu_visible) {
-                    emit radio_menu_hide();
-                    menu_visible = false;
-                }
-            }
-
-            if ((max == 0) && (checked)) { /* Zwykły tekst */
-                emit radio_text_changed(text, chan);
-            }
-            else if ((fullscreen) && (checked)) { /* Tryb "pełnoekranowy" */
-                if (idx == 0) {
-                    long_text = text.left(8);
-                }
-                else {
-                    long_text += text.left(8);
-
-                    if (idx == max) {
-                        emit radio_text_changed(long_text, 0);
-                    }
-                }
-                //qDebug() << "LongText" << long_text;
-            }
-        }
-        else {
-            _send_reply(frame, false);
-        }
+    switch(frame.can_id) {
+        case CAN_ID_SYNC_HU: _packetRecvSync(&frame); break;
+        case CAN_ID_DISPLAY_CONTROL: _packetRecvDisplayControl(&frame); break;
+        case CAN_ID_SET_TEXT: _packetRecvSetText(&frame); break;
+        default: _packetSendReply(&frame);
     }
 }
 
-void DisplayEmulator::_can_reset() {
-    qDebug() << "DisplayEmulator: Reseting can0";
-    QProcess::execute("ifdown can0");
-    QProcess::execute("ifup can0");
+void DisplayEmulator::_syncTimeout() {
+    qDebug() << "DisplayEmulator: Timeout!";
+    _syncState = displaySyncLost;
+    /* Reset CANa */
+    QProcess::execute("ifdown "DISPLAY_CAN_INTERFACE);
+    QProcess::startDetached("ifup "DISPLAY_CAN_INTERFACE);
 }
 
-void DisplayEmulator::_blink_add_text(QString text, int pos) {
-    if (pos >= _blink_texts.size())
-        _blink_texts.append(text);
-    else
-        _blink_texts.replace(pos, text);
-
-    if (!_blink_timer->isActive()) {
-        _blink_idx = 0;
-        _blink_timer->start();
+DisplayEmulator *DisplayEmulator::getInstance() {
+    if (!_instance) {
+        _instance = new DisplayEmulator();
+        _instance->moveToThread(&_workerThread);
+        _workerThread.start(QThread::NormalPriority);
     }
+
+    return _instance;
+}
+
+
+void DisplayEmulator::radioPowerChanged(bool enabled) {
+    //qDebug() << "DisplayEmulator: Radio power =" << enabled;
+
+    _socketNotifier->setEnabled(enabled);
+
+    if (!enabled) {
+        _syncTimer->stop();
+        _syncState = displaySyncLost;
+        QProcess::execute("ifdown "DISPLAY_CAN_INTERFACE);
+        emit displayTextChanged("");
+        emit displayIconsChanged(0xFF);
+    }
+    else {
+        //emit displayTextChanged("Radio ON");
+        QProcess::startDetached("ifup "DISPLAY_CAN_INTERFACE);
+    }
+
+}
+
+void DisplayEmulator::sendKeyEvent(int keycode) {
+    struct can_frame frame;
+
+    frame.can_id = CAN_ID_KEY_PRESSED;
+    frame.can_dlc = 8;
+    frame.data[0] = 0x03;
+    frame.data[1] = 0x89;
+    frame.data[2] = (keycode >> 8);
+    frame.data[3] = (keycode & 0xFF);
+    frame.data[4] = DISPLAY_FILL_BYTE;
+    frame.data[5] = DISPLAY_FILL_BYTE;
+    frame.data[6] = DISPLAY_FILL_BYTE;
+    frame.data[7] = DISPLAY_FILL_BYTE;
+
+    _socketSend(&frame);
 }

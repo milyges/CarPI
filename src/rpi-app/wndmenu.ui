@@ -19,7 +19,9 @@
 }
 
 QLabel[checked=&quot;true&quot;] {	
-	background-color: rgb(85, 0, 0);
+	background-color: #ff8c00;
+	color: #ddd;
+    border-radius: 4px;
 }
 </string>
   </property>

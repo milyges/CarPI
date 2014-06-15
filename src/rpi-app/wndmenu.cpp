@@ -1,80 +1,79 @@
 #include "wndmenu.h"
 #include "ui_wndmenu.h"
-#include <QDebug>
 
-WndMenu::WndMenu(QWidget *parent) : QDialog(parent), ui(new Ui::WndMenu) {
-    ui->setupUi(this);
+WndMenu::WndMenu(QWidget *parent) : QDialog(parent), _ui(new Ui::WndMenu) {
+    _ui->setupUi(this);
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
 }
 
 WndMenu::~WndMenu() {
-    delete ui;
+    delete _ui;
 }
 
 void WndMenu::changeEvent(QEvent *e) {
     QDialog::changeEvent(e);
     switch (e->type()) {
     case QEvent::LanguageChange:
-        ui->retranslateUi(this);
+        _ui->retranslateUi(this);
         break;
     default:
         break;
     }
 }
 
-void WndMenu::_clear_items() {
+void WndMenu::_clearItems() {
     while(!_items.isEmpty()) {
         delete _items.takeLast();
     }
 }
 
-void WndMenu::_set_active(int num) {
+void WndMenu::_setSelected(int num) {
     QLabel * item;
 
-    if (_active_item >= 0) {
-        item = _items.at(_active_item);
+    if (_selectedItem >= 0) {
+        item = _items.at(_selectedItem);
         item->setProperty("checked", false);
         item->style()->unpolish(item);
         item->style()->polish(item);
     }
 
-    _active_item = num;
-    item = _items.at(_active_item);
+    _selectedItem = num;
+    item = _items.at(_selectedItem);
     item->setProperty("checked", true);
     item->style()->unpolish(item);
     item->style()->polish(item);
 
-    ui->scrollArea->ensureWidgetVisible(item);
+    _ui->scrollArea->ensureWidgetVisible(item);
 }
 
-void WndMenu::show_menu(int items) {
+void WndMenu::showMenu(int items) {
     QLabel * item;
     if (!isVisible()) {
-        _active_item = -1;
-        _clear_items();
+        _selectedItem = -1;
+        _clearItems();
         for(int i = 0; i < items; i++) {
             item = new QLabel();
-            ui->verticalLayout_2->addWidget(item);
+            _ui->verticalLayout_2->addWidget(item);
             _items.append(item);
-        }        
+        }
         show();
         move(QPoint(480 / 2 - width() / 2, 272 / 2 - height() / 2));
     }
 }
 
-void WndMenu::hide_menu() {
+void WndMenu::hideMenu() {
     hide();
-    _active_item = -1;
-    _clear_items();
+    _selectedItem = -1;
+    _clearItems();
 }
 
-void WndMenu::set_menu_item(int idx, QString text, bool is_checked) {
+void WndMenu::setMenuItem(int itemno, QString text, bool isSelected) {
     QLabel * item;
-    item = _items.at(idx);
+    item = _items.at(itemno);
     if (item) {
-        item->setText(text);
+        item->setText(QString(" %1").arg(text));
     }
 
-    if (is_checked)
-        _set_active(idx);
+    if (isSelected)
+        _setSelected(itemno);
 }

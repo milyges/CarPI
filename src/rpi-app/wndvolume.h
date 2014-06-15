@@ -8,20 +8,24 @@ namespace Ui {
     class WndVolume;
 }
 
-class WndVolume : public QDialog {
+class WndVolume : public QDialog
+{
     Q_OBJECT
-    
+private:
+    Ui::WndVolume *_ui;
+    QTimer * _hideTimer;
+
 public:
     explicit WndVolume(QWidget *parent = 0);
     ~WndVolume();
-    void show_volume(int vol);
+    
+public slots:
+    void showVolume(int volume);
 
 protected:
     void changeEvent(QEvent *e);
     
-private:
-    Ui::WndVolume * ui;
-    QTimer * _hide_timer;
+
 };
 
 #endif // WNDVOLUME_H

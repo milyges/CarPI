@@ -2,74 +2,79 @@
 #define WNDMAIN_H
 
 #include <QMainWindow>
-#include <QCloseEvent>
-#include "displayemulator.h"
-#include "navit.h"
-#include "mainboard.h"
-#include "wndmenu.h"
-#include "changeremulator.h"
-#include "mp3player.h"
-#include "wndvolume.h"
-#include "bluetooth.h"
-#include "wndcall.h"
+#include <QTimer>
+#include <QMenu>
+#include <QVector>
+#include <QActionGroup>
+#include "carpi.h"
+#include "carpidial.h"
+
+#define RADIO_TEXT_MAX       18
 
 namespace Ui {
     class WndMain;
 }
 
-enum {
-    sourceFM = 0x00,
-    sourceCD = 0x01,
-    sourceCDChanger = 0x02,
-    sourceAUX = 0x03
-};
-
-#define RADIO_TEXT_MAX_LEN     18
-
-class WndMain : public QMainWindow
-{
+class WndMain : public QMainWindow {
     Q_OBJECT
+
 private:
     Ui::WndMain * _ui;
-    DisplayEmulator * _display;
-    ChangerEmulator * _cd_changer;
-    QTimer * _update_timer;
-    QTimer * _scroll_timer;
-    Navit * _navit;
-    MainBoard * _main_board;
-    MP3Player * _mp3_player;
-    WndMenu * _wnd_menu;
-    WndVolume * _wnd_volume;
-    WndCall * _wnd_call;
-    Bluetooth * _bluetooth;
+    QString _radioText;
+    int _radioTextPos;
+    QTimer * _timerScroll;
+    QTimer * _timerTimeUpdate;
+    QTimer * _timerNavitMenuDetect;
+    CarpiDial * _dials[6];
 
-    QString _radio_text;
-    int _radio_text_pos;
-    int _current_source;
-    bool _paused;
+    QMenu * _mainMenu;
+    QMenu * _viewMenu;
+    QMenu * _systemMenu;
 
-    void _switch_source(int newsrc);
+    QAction * _showMapAction;
+    QAction * _showDashboardAction;
+    QActionGroup * _viewMenuActions;
+    bool _navitMenuEnabled;
 
 private slots:
-    void _display_state_change(bool enabled);
-    void _radio_text_changed(QString text, int chan);
-    void _radio_icons_changed(uint16_t icon_mask);
-    void _update_timer_tick(void);
-    void _scroll_timer_tick(void);
-    void _my_close(void);
-    void _pilot_key_pressed(uint8_t keymask);
-    void _set_radio_text(QString text);
-    void _bluetooth_state_changed(bool connected);
-    void _bluetooth_call_status_changed(int newstate);
-    void _set_source(int source);
+    void _textScroll(void);
+    void _timeUpdate(void);
+
+    void _menuHide(void);
+
+    void _setViewNavit(void);
+    void _setViewDashboard(void);
+    void _showNavitMenu(void);
+
+    void _systemShutdown(void);
+
+    void _navitMenuDetectTick(void);
 
 public:
     explicit WndMain(QWidget *parent = 0);
     ~WndMain();
 
+    QWidget * getNavitWidget(void);
+
+public slots:
+    void setRadioText(QString text);
+    void setRadioIcons(bool news, bool traffic, bool afrds);
+    void setSource(enum CarPISource source);
+    void setBluetoothIcon(bool isConnected);
+
+    void dialValueChanged(enum CarPIDialsID dialID, double value);
+
+    void changeDisplayMode(void);
+
+    void menuShow(void);
+    void menuKeyPressed(enum CarPIKey key);
+
 protected:
     void changeEvent(QEvent *e);
     
+signals:
+    void mainMenuHide(void);
+    void shutdown(void);
 
 };
 

@@ -1,10 +1,10 @@
 #include "mainboard.h"
-#include <QDebug>
-#include <QByteArray>
+#include <wiringPi.h>
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
-#include <cmath>
-#include <wiringPi.h>
+#include <QDebug>
+#include <QApplication>
+#include <QByteArray>
 
 #define I2C_SLAVE_ADDR        0x30
 
@@ -38,64 +38,56 @@ MainBoard * MainBoard::_instance = NULL;
 MainBoard::MainBoard(QObject *parent) : QObject(parent) {
     int fd;
 
+    _radioPowerEnabled = false;
+    _ignitionEnabled = false;
+
     wiringPiSetup();
 
-    _i2c_file = new QFile("/dev/i2c-1");
-    _i2c_file->open(QIODevice::ReadWrite | QIODevice::Unbuffered);
-    fd = _i2c_file->handle();
+    _i2c_bus = new QFile("/dev/i2c-1");
+    _i2c_bus->open(QIODevice::ReadWrite | QIODevice::Unbuffered);
+    fd = _i2c_bus->handle();
     if (ioctl(fd, I2C_SLAVE, I2C_SLAVE_ADDR) < 0) {
         qDebug() << "MainBoard: ioctl() failed!";
+        QApplication::exit(1);
         return;
     }
-
-    //qDebug() << "MainBoard: I2C Ready.";
-
-    _shutdown_timer = new QTimer(this);
-    _shutdown_timer->setInterval(1000);
-    _shutdown_timer->setSingleShot(false);
-    connect(_shutdown_timer, SIGNAL(timeout()), this, SLOT(_shutdown_timer_tick()));
-
-    connect(this, SIGNAL(mainboard_new_event()), this, SLOT(mainboard_event()));
 
     /* Pin przerwania od AVRa */
     pinMode(MAINBOARD_INT_PIN, INPUT);
     pullUpDnControl(MAINBOARD_INT_PIN, PUD_UP);
-    wiringPiISR(MAINBOARD_INT_PIN, INT_EDGE_RISING, &MainBoard::_mainboard_int);
+    wiringPiISR(MAINBOARD_INT_PIN, INT_EDGE_RISING, &MainBoard::_mainboardIntHandler);
 
     /* Piny bluetooth: tryb */
     pinMode(MAINBOARD_BT_MODE_PIN, OUTPUT);
-    bluetooth_set_mode(false);
+
 
     /* Piny bluetooth: przerwanie */
     pinMode(MAINBOARD_BT_INT_PIN, INPUT);
     pullUpDnControl(MAINBOARD_BT_INT_PIN, PUD_UP);
-    wiringPiISR(MAINBOARD_BT_INT_PIN, INT_EDGE_RISING, &MainBoard::_bluetooth_int);
+    wiringPiISR(MAINBOARD_BT_INT_PIN, INT_EDGE_RISING, &MainBoard::_bluetoothIntHandler);
+
+    connect(this, SIGNAL(mainboardInt()), this, SLOT(_mainboardInt()));
+
+    /* Zegar wyłączający zasilanie */
+    _shutdownTimer = new QTimer(this);
+    _shutdownTimer->setInterval(1000);
+    _shutdownTimer->setSingleShot(false);
+    connect(_shutdownTimer, SIGNAL(timeout()), this, SLOT(_shutdownTimerTick()));
 }
 
 MainBoard::~MainBoard() {
-    _i2c_file->close();
-    if (_i2c_file)
-        delete _i2c_file;
+    _i2c_bus->close();
 }
 
-float MainBoard::get_temp() {
-    return _last_temp;
-}
-
-void MainBoard::bluetooth_set_mode(bool cmd) {
-    if (cmd)
-        digitalWrite(MAINBOARD_BT_MODE_PIN, 0);
-    else
-        digitalWrite(MAINBOARD_BT_MODE_PIN, 1);
-}
-
-void MainBoard::mainboard_event() {
+void MainBoard::_mainboardInt() {
+    QByteArray data;
     int i;
     bool anykey = false;
-//    qDebug() << "MainBoard: New event!";
+    bool ignitionEnabled, radioPowerEnabled;
 
-    QByteArray data = _i2c_file->read(REG_MAX + 1);
-    data = data.remove(0, 1);
+    //qDebug() << "MainBoard: Interrput!";
+
+    data = _i2c_bus->read(REG_MAX + 1).remove(0, 1);
 #if 0
     qDebug() << "Dumping registers: ";
     for(i = 0; i < REG_MAX; i++) {
@@ -103,76 +95,79 @@ void MainBoard::mainboard_event() {
     }
 #endif
 
-    /* Obsługa zasilania */
-    if ((data[REG_POWER_STATE] & (REG_POWER_IGNITION | REG_POWER_RADIO)) == 0) { /* Radio i zapłon wyłączone */
-        if (!_shutdown_timer->isActive()) {
-            //qDebug() << "MainBoard: starting shutdown timer";
-            _shutdown_timeout = 600; /* 10 minut */
-            _shutdown_timer->start();
+    /* Stan zasilania */
+    ignitionEnabled = ((data.at(REG_POWER_STATE) & REG_POWER_IGNITION) == REG_POWER_IGNITION);
+    radioPowerEnabled = ((data.at(REG_POWER_STATE) & REG_POWER_RADIO) == REG_POWER_RADIO);
+
+    //qDebug() << "ignition" << ignitionEnabled << ", radio" << radioPowerEnabled;
+
+    if (_radioPowerEnabled != radioPowerEnabled) {
+        _radioPowerEnabled = radioPowerEnabled;
+        emit radioPowerChanged(radioPowerEnabled);
+    }
+
+    if (_ignitionEnabled != ignitionEnabled) {
+        _ignitionEnabled = ignitionEnabled;
+        emit ignitionChanged(ignitionEnabled);
+    }
+
+    if ((!ignitionEnabled) && (!radioPowerEnabled)) {
+        if (!_shutdownTimer->isActive()) {
+            _shutdownTimeout = 3600; /* Czas do zamknięcia systemu */
+            _shutdownTimer->start();
         }
     }
     else {
-        if (_shutdown_timer->isActive()) {
-            //qDebug() << "MainBoard: shutdown canceled";
-            _shutdown_timer->stop();
-        }
+        _shutdownTimer->stop();
     }
-
-    /* Temperatura */
-    _calculate_temp((data[REG_TEMP_HIGH] << 7) | (data[REG_TEMP_LOW] & 0x7F));
 
     /* Klawisze pilota */
     for(i = 0; i < 8; i++) {
-        if (data.at(REG_KEY_0 + i) > 0) { /* Klawisz wciśnięty */
-            //qDebug("MainBoard: key %x pressed", data.at(REG_KEY_0 + i));
+        if (data.at(REG_KEY_0 + i) > 0) {
             anykey = true;
-            emit keypressed(data.at(REG_KEY_0 + i));
+            emit keyStateChanged(data.at(REG_KEY_0 + i));
         }
     }
 
+    /* Brak wciśniętego klawisza */
     if (!anykey) {
-        emit keypressed(0);
+        emit keyStateChanged(0);
     }
 }
 
-void MainBoard::_shutdown_timer_tick() {
-    if (!--_shutdown_timeout) {
-        _shutdown_timer->stop();
-        qDebug() << "SHUTDOWN!!!";
+void MainBoard::_shutdownTimerTick() {
+    _shutdownTimeout--;
+
+    if (_shutdownTimeout <= 0) {
         emit shutdown();
+        _shutdownTimer->stop();
     }
 }
 
-MainBoard * MainBoard::get_instance() {
+MainBoard *MainBoard::getInstance() {
     if (!_instance)
         _instance = new MainBoard();
 
     return _instance;
 }
 
-void MainBoard::_calculate_temp(uint16_t raw) {
-    double voltage, resistance;
-    //qDebug("MainBoard: rawtemp: 0x%X", raw);
-    if ((raw == 0x3FF) || (raw == 0x00)) { /* Zwarcie lub czujnik nie podłączony */
-        return;
+void MainBoard::bluetoothSetMode(bool cmdMode) {
+    if (cmdMode) {
+        digitalWrite(MAINBOARD_BT_MODE_PIN, 0);
     }
-
-    voltage = 5.0 * raw / 1023;
-    //qDebug("MainBoard: ADC voltage = %fV", voltage);
-
-    resistance = 10000 / (5.0 / voltage - 1);
-    //qDebug("MainBoard: Termistor resistance: %fR", resistance);
-
-    _last_temp = -27.2218 * log(resistance) + 238.3824;
-    //qDebug("MainBoard: Temperature: %fC", _last_temp);
+    else {
+        digitalWrite(MAINBOARD_BT_MODE_PIN, 1);
+    }
 }
 
-void MainBoard::_mainboard_int() {
-    //qDebug() << "mainboard interrupt!";
-    emit _instance->mainboard_new_event();
+void MainBoard::readState() {
+    emit mainboardInt();
 }
 
-void MainBoard::_bluetooth_int() {
-    //qDebug() << "bluetooth event!";
-    emit _instance->bluetooth_event();
+void MainBoard::_mainboardIntHandler() {
+    emit _instance->mainboardInt();
+}
+
+void MainBoard::_bluetoothIntHandler() {
+    emit _instance->bluetoothInt();
 }

@@ -2,108 +2,82 @@
 #define MP3PLAYER_H
 
 #include <QObject>
+#include <QThread>
+#include <QTimer>
 #include <QFileInfoList>
 #include <QStringList>
-#include <QThread>
 #include <QSettings>
-#include <QTimer>
 #include <phonon/MediaObject>
 #include <phonon/AudioOutput>
 #include <phonon/Path>
 #include <phonon/MediaSource>
 
-
-enum {
-    mp3PlayerStateStopped = 1,
-    mp3PlayerStateStarting,
-    mp3PlayerStatePlaying,
-    mp3PlayerStatePaused
+enum MP3PlayerState {
+    mp3PlayerStandby = 1,
+    mp3PlayerStarting,
+    mp3PlayerPlaying,
+    mp3PlayerPaused,
+    mp3PlayerError
 };
 
-enum {
-    displayModeTitle = 1,
-    displayModeAlbum
+enum MP3PlayerDisplayMode {
+    mp3PlayerDisplayTitle = 1,
+    mp3PlayerDisplayAlbum
 };
 
-class MP3PlayerWorker : public QObject {
-    Q_OBJECT
-private:
-    QStringList _media_files;
-    QStringList _album_list;
-    int _album_current;
-    QStringList _track_list;
-    int _track_current;
-    QString _uuid;
-    QSettings _settings;
-    int _display_mode;
-    QTimer * _display_timer;
-
-    Phonon::MediaObject * _media_object;
-    Phonon::AudioOutput * _audio_output;
-
-    void _album_load(int num);
-    void _track_load(int num);
-    QString _device_uuid(QString devpath);
-
-private slots:
-    void _state_changed(Phonon::State newstate, Phonon::State oldstate);
-    void _playback_finished(void);
-    void _display_update(void);
-
-public slots:
-    void stop(void);
-    void start(void);
-    void next_track(void);
-    void prev_track(void);
-    void set_paused(bool paused);
-    void next_album(bool trackload = true);
-    void prev_album(bool trackload = true);
-    void display_album(void);
-
-public:
-    MP3PlayerWorker(QObject *parent = 0);
-    ~MP3PlayerWorker();
-
-
-signals:
-    void text_changed(QString s);
-};
 
 class MP3Player : public QObject {
     Q_OBJECT
 private:
-    MP3PlayerWorker * _worker;
-    QThread * _worker_thread;
-    int _state;
+    static MP3Player * _instance;
+    static QThread _workerThread;
+    static QStringList _mediaFileTypes;
+    QSettings _settings;
 
-signals:
-    void text_changed(QString title);
-    void worker_stop(void);
-    void worker_start(void);
-    void worker_next_track(void);
-    void worker_prev_track(void);
-    void worker_pause(bool paused);
-    void worker_next_album(void);
-    void worker_prev_album(void);
-    void worker_display_album(void);
+    enum MP3PlayerDisplayMode _displayMode;
+    enum MP3PlayerState _state;
 
-public slots:
-    void worker_text_changed(QString text);
-    void next_track(void);
-    void prev_track(void);
+    Phonon::MediaObject * _mediaObject;
+    Phonon::AudioOutput * _audioOutput;
 
-    void pause(void);
-    void play(void);
-    void stop(void);
+    QString _deviceUUID;
 
-    void numkey_pressed(int num);
+    QStringList _albumList;
+    int _albumCurrent;
+    QStringList _trackList;
+    int _trackCurrent;
 
-public:
+    void _start(void);
+    bool _albumLoad(int number);
+    bool _trackLoad(int number);
+    QString _deviceGetUUID(QString path);
+
     explicit MP3Player(QObject *parent = 0);
     ~MP3Player();
-    void enable(void);
-    void disable(void);
-    bool is_paused(void);
+
+private slots:
+    void _mediaObjectStateChanged(Phonon::State newstate, Phonon::State oldstate);
+    void _mediaObjectPlaybackFinished(void);
+    void _updateText(void);
+
+public:
+    static MP3Player * getInstance(void);
+    
+signals:
+    void textChanged(QString text);
+
+public slots:
+    void play(void);
+    void pause(void);
+    void stop(void);
+
+    void nextTrack(void);
+    void prevTrack(void);
+
+    void nextAlbum(bool loadTrack = true);
+    void prevAlbum(bool loadTrack = true);
+
+    void switchDisplayMode(void);
 };
 
 #endif // MP3PLAYER_H

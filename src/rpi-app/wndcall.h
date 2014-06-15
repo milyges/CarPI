@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <QTimer>
 #include <QTime>
+
 #include "bluetooth.h"
 
 namespace Ui {
@@ -11,25 +12,27 @@ namespace Ui {
 }
 
 class WndCall : public QDialog {
-    Q_OBJECT
+    Q_OBJECT    
+
 private:
-    Ui::WndCall *ui;
-    QTimer * _call_timer;
-    QTime _call_duration;
-    int _status;
+    Ui::WndCall * _ui;
+    QTimer * _callTimer;
+    QTime _callDuration;
 
 private slots:
-    void _call_timer_tick(void);
+    void _callTimerTick(void);
 
 public:
     explicit WndCall(QWidget *parent = 0);
     ~WndCall();
-
+    
 public slots:
-    void update_status(int newstatus);
+    void callStateChanged(enum BluetoothCallState state);
 
 protected:
     void changeEvent(QEvent *e);
+    
+
 };
 
 #endif // WNDCALL_H

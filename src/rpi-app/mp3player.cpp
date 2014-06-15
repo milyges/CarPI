@@ -1,360 +1,355 @@
 #include "mp3player.h"
-#include <QProcess>
 #include <QDir>
+#include <QProcess>
 #include <QDebug>
-#include <QApplication>
 #include <QRegExp>
+#include <QFile>
+
+MP3Player * MP3Player::_instance = NULL;
+QThread MP3Player::_workerThread;
+QStringList MP3Player::_mediaFileTypes;
 
 MP3Player::MP3Player(QObject *parent) : QObject(parent) {
-    _state = mp3PlayerStateStopped;
-    _worker = new MP3PlayerWorker();
-    _worker_thread = new QThread(this);
-    _worker->moveToThread(_worker_thread);
+    _state = mp3PlayerStandby;
+    _displayMode = mp3PlayerDisplayTitle;
 
-    connect(this, SIGNAL(worker_stop()), _worker, SLOT(stop()));
-    connect(this, SIGNAL(worker_start()), _worker, SLOT(start()));
-    connect(this, SIGNAL(worker_next_track()), _worker, SLOT(next_track()));
-    connect(this, SIGNAL(worker_prev_track()), _worker, SLOT(prev_track()));
-    connect(this, SIGNAL(worker_pause(bool)), _worker, SLOT(set_paused(bool)));
-    connect(this, SIGNAL(worker_next_album()), _worker, SLOT(next_album()));
-    connect(this, SIGNAL(worker_prev_album()), _worker, SLOT(prev_album()));
-    connect(this, SIGNAL(worker_display_album()), _worker, SLOT(display_album()));
+    _mediaObject = new Phonon::MediaObject(this);
+    _audioOutput = new Phonon::AudioOutput(Phonon::MusicCategory, this);
 
-    connect(_worker, SIGNAL(text_changed(QString)), this, SLOT(worker_text_changed(QString)));
+    Phonon::createPath(_mediaObject, _audioOutput);
 
-    _worker_thread->start();
+    connect(_mediaObject, SIGNAL(stateChanged(Phonon::State,Phonon::State)), this, SLOT(_mediaObjectStateChanged(Phonon::State,Phonon::State)));
+    connect(_mediaObject, SIGNAL(finished()), this, SLOT(_mediaObjectPlaybackFinished()));
 }
 
 MP3Player::~MP3Player() {
-    _worker_thread->quit();
-    _worker_thread->wait();
-    delete _worker_thread;
-    delete _worker;
+    delete _audioOutput;
+    delete _mediaObject;
 }
 
-void MP3Player::enable() {    
-    if (_state != mp3PlayerStateStopped)
-        return;
-
-    _state = mp3PlayerStatePlaying;
-    emit worker_start();
-}
-
-void MP3Player::disable() {
-    if (_state != mp3PlayerStateStopped) {
-        _state = mp3PlayerStateStopped;
-        emit worker_stop();
+void MP3Player::_mediaObjectStateChanged(Phonon::State newstate, Phonon::State oldstate) {
+    switch(newstate) {
+        case Phonon::PlayingState: _updateText(); break;
+        case Phonon::LoadingState: emit textChanged("USB: Loading"); break;
     }
 }
 
-bool MP3Player::is_paused() {
-    return (_state == mp3PlayerStatePaused);
-}
+MP3Player *MP3Player::getInstance() {
+    if (!_instance) {
+        _mediaFileTypes.clear();
+        _mediaFileTypes.append("*.mp3");
+        _mediaFileTypes.append("*.ogg");
+        _mediaFileTypes.append("*.wma");
+        _mediaFileTypes.append("*.wav");
+        _mediaFileTypes.append("*.flac");
 
-void MP3Player::next_track() {
-    emit worker_next_track();
-}
-
-void MP3Player::prev_track() {
-    emit worker_prev_track();
-}
-
-void MP3Player::pause() {
-    if (_state == mp3PlayerStatePlaying) {
-        _state = mp3PlayerStatePaused;
-        emit worker_pause(true);
+        _instance = new MP3Player();
+        _instance->moveToThread(&_workerThread);
+        _workerThread.start(QThread::HighestPriority);
     }
+
+    return _instance;
 }
 
 void MP3Player::play() {
-    if (_state == mp3PlayerStateStopped) {
-        enable();
+    if (_state == mp3PlayerStandby) {
+        _start();
     }
-    else if (_state == mp3PlayerStatePaused) {
-        _state = mp3PlayerStatePlaying;
-        emit worker_pause(false);
+
+    if (_state == mp3PlayerPaused) {
+        _mediaObject->play();
+        _state = mp3PlayerPlaying;
+    }
+}
+
+void MP3Player::pause() {
+    if (_state == mp3PlayerPlaying) {
+        _mediaObject->pause();
+        _state = mp3PlayerPaused;
     }
 }
 
 void MP3Player::stop() {
-    if (_state != mp3PlayerStateStopped) {
-        _state = mp3PlayerStateStopped;
-        emit worker_stop();
-    }
-}
-
-void MP3Player::numkey_pressed(int num) {
-    switch(num) {
-        case 0x01: emit worker_next_album(); break; /* Album + */
-        case 0x02: emit worker_prev_album(); break; /* Album - */
-        case 0x05: emit worker_display_album(); break; /* Display Album */
-    }
-}
-
-void MP3Player::worker_text_changed(QString text) {
-    if (_state != mp3PlayerStateStopped)
-        emit text_changed(text);
-}
-
-
-void MP3PlayerWorker::start() {
-    QString devname;
-    QString lastuuid;
-    QDir devdir("/dev", "sd*", QDir::Name | QDir::Reversed, QDir::System);
-    QDir rootdir("/mnt/usb");
-    QFileInfoList filelist;    
-    int err, album, track;
-    qint64 trackpos;
-
-    qDebug() << "MP3PlayerWorker: start";
-    emit text_changed(" USB");
-
-    /* Wykrywanie urządzenia i montowanie */
-    filelist = devdir.entryInfoList();
-
-    if (filelist.size() == 0) {
-        emit text_changed("USB: No device");
+    if (_state == mp3PlayerStandby) { /* Juz wyłączony */
         return;
     }
-
-    devname = filelist.at(0).absoluteFilePath();
-    qDebug() << "MP3PlayerWorker: Detected device at" << devname;
-
-    QProcess::execute("umount /mnt/usb");
-    err = QProcess::execute(QString("mount %1 /mnt/usb").arg(devname));
-    if (err != 0) {
-        emit text_changed("USB: Device Error");
-        return;
-    }
-    _uuid = _device_uuid(devname);
-
-    emit text_changed("USB: Reading");
-
-    _album_list.clear();
-    _album_list.append(""); /* Główny katalog */
-    _album_list.append(rootdir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name));
-
-    //qDebug() << "MP3PlayerWorker: Album list:" << _album_list;
-    _album_current = -1;
-
-    lastuuid = _settings.value("mp3player/uuid").toString();
-    album = _settings.value("mp3player/album").toInt();
-    track = _settings.value("mp3player/track").toInt();
-    trackpos = _settings.value("mp3player/trackpos").toULongLong();
-
-    if ((_uuid.isEmpty()) || (lastuuid != _uuid) || (album >= _album_list.size())) { /* Nowa sesja */
-        album = 0;
-        track = 0;
-        trackpos = 0;
+    
+    if (_state != mp3PlayerError) {
+        _settings.setValue("mp3player/uuid", _deviceUUID);
+        _settings.setValue("mp3player/album", _albumCurrent);
+        _settings.setValue("mp3player/track", _trackCurrent);
+        _settings.setValue("mp3player/trackTime", _mediaObject->currentTime());
     }
 
-    _album_load(album);
-
-    if (track >= _track_list.size()) { /* Nowa sesja */
-        _album_load(0);
-        track = 0;
-        trackpos = 0;
-    }
-
-    _track_load(track);
-    if (trackpos > 0) {
-        _media_object->seek(trackpos);
-    }
-
+    _mediaObject->stop();
+    //QProcess::execute("umount /mnt/usb");
+    _state = mp3PlayerStandby;
+    qDebug() << "MP3Player: Stopped";
 }
 
-void MP3PlayerWorker::next_track() {
+void MP3Player::nextTrack() {
     int num;
 
-    num = _track_current + 1;
-    if (num >= _track_list.size()) { /* Następny album */
-        next_album(false);
+    num = _trackCurrent + 1;
+    if (num >= _trackList.size()) {
+        nextAlbum(false);
         num = 0;
     }
 
-    _track_load(num);
-}
-
-void MP3PlayerWorker::prev_track() {
-    int num;
-
-    if (_media_object->currentTime() > 5000) { /* Jeżeli dalej niż 5 sekund ścieżki przesuń do początku */
-        _media_object->seek(0);
+    if ((_trackList.isEmpty()) || (!_trackLoad(num))) {
+        emit textChanged("USB: Disk error");
+        _state = mp3PlayerError;
+        stop();
         return;
     }
 
-    num = _track_current - 1;
-    if (num < 0) { /* Poprzedni album, ostatnia ścieżka */
-        prev_album(false);
-        num = _track_list.size() - 1;
-    }
-
-    _track_load(num);
+    _mediaObject->play();
 }
 
-void MP3PlayerWorker::set_paused(bool paused) {
-    if (paused) {
-        qDebug() << "MP3Player: pause()";
-        _media_object->pause();
-    }
-    else {
-        _media_object->play();
-    }
-}
-
-void MP3PlayerWorker::next_album(bool trackload) {
+void MP3Player::prevTrack() {
     int num;
 
-    num = _album_current + 1;
-    if (num >= _album_list.size()) {
-        num = 0;
+    if (_mediaObject->currentTime() > 5000) {
+        _mediaObject->seek(0);
+        return;
     }
 
-    _album_load(num);
-    if (trackload)
-        _track_load(0);
-}
-
-void MP3PlayerWorker::prev_album(bool trackload) {
-    int num;
-
-    num = _album_current - 1;
+    num = _trackCurrent - 1;
     if (num < 0) {
-        num = _album_list.size() - 1;
+        prevAlbum(false);
+        num = _trackList.size() - 1;
     }
 
-    _album_load(num);
-    if (trackload)
-        _track_load(0);
+    _trackLoad(num);
+    _mediaObject->play();
 }
 
-void MP3PlayerWorker::display_album() {
-    _display_mode = displayModeAlbum;
-    _display_update();
-    _display_mode = displayModeTitle;
-    if (_display_timer->isActive())
-        _display_timer->stop();
-    _display_timer->start();
+void MP3Player::nextAlbum(bool loadTrack) {
+    int num;
+    int start = _albumCurrent;
+    bool loaded;
+
+    do {
+        num = _albumCurrent + 1;
+        if (num >= _albumList.size()) {
+            num = 0;
+        }
+
+        loaded = _albumLoad(num);
+    } while ((start != _albumCurrent) && (!loaded));
+
+    qDebug() << "MPPlayer: Loaded:" << loaded << ", num =" << _albumCurrent;
+    if (!loaded) {
+       //emit textChanged("USB: Empty disk");
+       _state = mp3PlayerError;
+       stop();
+    }
+    else if (loadTrack) {
+        _trackLoad(0);
+        _mediaObject->play();
+    }
 }
 
-void MP3PlayerWorker::_playback_finished() {
-    next_track();
+void MP3Player::prevAlbum(bool loadTrack) {
+    int num;
+
+    num = _albumCurrent - 1;
+    if (num < 0) {
+        num = _albumList.size() - 1;
+    }
+
+    _albumLoad(num);
+
+    if (loadTrack) {
+        _trackLoad(0);
+        _mediaObject->play();
+    }
 }
 
-void MP3PlayerWorker::_display_update() {
-    QString text;
-    switch(_display_mode) {
-        case displayModeTitle: {
-            text = _track_list.at(_track_current);
+void MP3Player::switchDisplayMode() {
+    if (_displayMode == mp3PlayerDisplayAlbum)
+        _displayMode = mp3PlayerDisplayTitle;
+    else
+        _displayMode = mp3PlayerDisplayAlbum;
+
+    _updateText();
+}
+
+void MP3Player::_start() {
+    QString devName;
+//    QDir devDir("/dev", "sd*", QDir::Name | QDir::Reversed, QDir::System);
+    QDir rootDir("/mnt/usb");
+    QString lastUUID, line;
+    QFile mountsFile("/proc/mounts");
+    QStringList fields;
+    int album, track;
+    qint64 trackTime;
+    QFileInfoList filelist;
+
+    _state = mp3PlayerStarting;
+    qDebug() << "MP3Player: Starting";
+    emit textChanged("USB");
+
+    if (!mountsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "MP3Player: open /proc/mounts failed";
+    }
+
+    QTextStream mountsStream(&mountsFile);
+
+    while(1) {
+        line = mountsStream.readLine();
+	if (line.isEmpty())
+            break;
+        fields = line.split(QRegExp("\\s+"));
+	
+        if (fields.at(1) == "/mnt/usb") {
+            devName = fields.at(0);
             break;
         }
-        case displayModeAlbum: {
-            text = _album_list.at(_album_current);
+    }
+
+    mountsFile.close();
+    /* Wykrywanie urządzenia i montowanie */
+ //   filelist = devDir.entryInfoList();
+
+ //   if (filelist.size() == 0) {
+ //       emit textChanged("USB: No device");
+ //       return;
+ //   }
+
+  //  devName = filelist.at(0).absoluteFilePath();
+    qDebug() << "MP3PlayerWorker: Detected device at" << devName;
+
+    if (devName.isEmpty()) {
+         emit textChanged("USB: No device");
+         return;
+    }
+
+    //QProcess::execute("umount /mnt/usb");
+    //err = QProcess::execute(QString("mount -o codepage=852,iocharset=iso8859-2,utf8 %1 /mnt/usb").arg(devName));
+/*    if (err != 0) {
+        _state = mp3PlayerError;
+        emit textChanged("USB: Mount error");
+        return;
+    }*/
+
+    _deviceUUID = _deviceGetUUID(devName);
+
+    emit textChanged("USB: Reading");
+
+    _albumList.clear();
+    _albumList.append("");
+    _albumList.append(rootDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase));
+    _albumCurrent = -1;
+
+    lastUUID = _settings.value("mp3player/uuid").toString();
+    album = _settings.value("mp3player/album").toInt();
+    track = _settings.value("mp3player/track").toInt();
+    trackTime = _settings.value("mp3player/trackTime").toULongLong();
+
+    if ((_deviceUUID.isEmpty()) || (lastUUID != _deviceUUID) || (album >= _albumList.size())) { /* Nowa sesja */
+        album = 0;
+        track = 0;
+        trackTime = 0;
+    }
+
+    _albumLoad(album);
+
+    if (track >= _trackList.size()) { /* Nowa sesja */
+        _albumLoad(0);
+        track = 0;
+        trackTime = 0;
+    }
+
+    _trackLoad(track);
+    _mediaObject->play();
+
+    if (trackTime > 0) {
+        _mediaObject->seek(trackTime);
+    }
+
+    _state = mp3PlayerPlaying;
+    qDebug() << "MP3Player: Started";
+}
+
+bool MP3Player::_albumLoad(int number) {
+    QDir albumDir(QString("/mnt/usb/%1").arg(_albumList.at(number)));
+
+    _albumCurrent = number;
+
+    _displayMode = mp3PlayerDisplayAlbum;
+    _updateText();
+
+    albumDir.setNameFilters(_mediaFileTypes);
+    albumDir.setSorting(QDir::Name | QDir::IgnoreCase);
+    albumDir.setFilter(QDir::Files);
+
+    _trackList.clear();
+    _trackList.append(albumDir.entryList());
+
+    //qDebug() << "MP3Player: Track list" << _trackList;
+
+    return !_trackList.isEmpty(); /* Zwracamy false jezeli nie ma żadnej ściezki */
+}
+
+bool MP3Player::_trackLoad(int number) {
+    QString fileName;
+
+    if ((number < 0) || (number >= _trackList.size()))
+        return false;
+
+    _trackCurrent = number;
+
+    _mediaObject->stop();
+    _displayMode = mp3PlayerDisplayTitle;
+
+    fileName = QString("/mnt/usb/%1/%2").arg(_albumList.at(_albumCurrent)).arg(_trackList.at(number));
+    if (!QFile(fileName).exists()) {
+        return false;
+    }
+
+    Phonon::MediaSource trackfile(fileName);
+
+    _mediaObject->setCurrentSource(trackfile);
+
+    return true;
+}
+
+QString MP3Player::_deviceGetUUID(QString path) {
+    QProcess proc;
+    QString result;
+    QRegExp uuidRegexp("UUID=\"([A-Fa-F0-9\\-]+)\"");
+
+    proc.start("blkid", QStringList() << path);
+    proc.waitForFinished();
+    result = QString(proc.readAll()).trimmed();
+
+    if (uuidRegexp.indexIn(result) != -1)
+        return uuidRegexp.cap(1);
+    else
+        return "";
+}
+
+void MP3Player::_mediaObjectPlaybackFinished() {
+    nextTrack();
+}
+
+void MP3Player::_updateText() {
+    QString text;
+    switch(_displayMode) {
+        case mp3PlayerDisplayTitle: {
+            text = _trackList.at(_trackCurrent);
+            break;
+        }
+        case mp3PlayerDisplayAlbum: {
+            text = _albumList.at(_albumCurrent);
             if (text.isEmpty())
-                text = "Album: Root";
-            else
-                text.prepend("Album: ");
+                text = "ROOT";
+            text.prepend("Album: ");
             break;
         }
     }
 
     if (!text.isEmpty())
-        emit text_changed(text);
-}
-
-void MP3PlayerWorker::stop() {
-    _settings.setValue("mp3player/uuid", _uuid);
-    _settings.setValue("mp3player/album", _album_current);
-    _settings.setValue("mp3player/track", _track_current);
-    _settings.setValue("mp3player/trackpos", _media_object->currentTime());
-
-    _media_object->stop();
-
-    QProcess::execute("umount /mnt/usb");
-
-    qDebug() << "MP3PlayerWorker: done";
-}
-
-MP3PlayerWorker::MP3PlayerWorker(QObject *parent) : QObject(parent) {
-    _display_timer = new QTimer(this);
-    _display_timer->setInterval(7000);
-    _display_timer->setSingleShot(true);
-    _display_mode = displayModeTitle;
-    connect(_display_timer, SIGNAL(timeout()), this, SLOT(_display_update()));
-
-    _media_files.clear();
-    _media_files.append("*.mp3");
-    _media_files.append("*.wav");
-    _media_files.append("*.ogg");
-    _media_files.append("*.wma");
-    _media_files.append("*.flac");
-
-    _media_object = new Phonon::MediaObject(this);
-    _audio_output = new Phonon::AudioOutput(Phonon::MusicCategory, this);
-
-    Phonon::createPath(_media_object, _audio_output);
-
-    connect(_media_object, SIGNAL(stateChanged(Phonon::State, Phonon::State)), this, SLOT(_state_changed(Phonon::State, Phonon::State)));
-    connect(_media_object, SIGNAL(finished()), this, SLOT(_playback_finished()));
-}
-
-MP3PlayerWorker::~MP3PlayerWorker() {
-    delete _media_object;
-    delete _audio_output;
-}
-
-void MP3PlayerWorker::_album_load(int num) {
-    QDir albumdir(QString("/mnt/usb/%1").arg(_album_list.at(num)));
-
-    _album_current = num;
-    if (_album_list.at(num).isEmpty()) {
-        emit text_changed("Album: Root");
-    }
-    else {
-        emit text_changed(QString("Album: %1").arg(_album_list.at(num)));
-    }
-
-    albumdir.setNameFilters(_media_files);
-    albumdir.setSorting(QDir::Name);
-    albumdir.setFilter(QDir::Files);
-
-    _track_list.clear();
-    _track_list.append(albumdir.entryList());
-
-    //qDebug() << "MP3PlayerWorker: Loaded track list:" << _track_list;
-}
-
-void MP3PlayerWorker::_track_load(int num) {    
-    _track_current = num;
-
-    _media_object->stop();
-
-    Phonon::MediaSource trackfile(QString("/mnt/usb/%1/%2").arg(_album_list.at(_album_current)).arg(_track_list.at(num)));
-
-    _media_object->setCurrentSource(trackfile);
-    _media_object->play();
-}
-
-QString MP3PlayerWorker::_device_uuid(QString devpath) {
-    QProcess proc;
-    QString result;
-    QRegExp uuid_regexp("UUID=\"([A-Fa-F0-9\\-]+)\"");
-
-    proc.start("blkid", QStringList() << devpath);
-    proc.waitForFinished();
-    result = QString(proc.readAll()).trimmed();
-
-    if (uuid_regexp.indexIn(result) != -1)
-        return uuid_regexp.cap(1);
-    else
-        return "";
-}
-
-void MP3PlayerWorker::_state_changed(Phonon::State newstate, Phonon::State oldstate) {
-    switch(newstate) {
-    case Phonon::PlayingState: _display_update(); break;
-        case Phonon::LoadingState: emit text_changed("USB: Loading"); break;
-        case Phonon::ErrorState: emit text_changed("USB: Device error"); break;
-        case Phonon::PausedState: emit text_changed("   PAUSE"); break;
-    }
+        emit textChanged(text);
 }
