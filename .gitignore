@@ -1,4 +1,5 @@
 /src/rpi-app/CarPI
+/src/rpi-app/Makefile
 *.o
 *.tmp
 *.s#*
