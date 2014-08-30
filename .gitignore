@@ -8,5 +8,6 @@
 *.elf
 *.pro.*
 *.eep
-moc_*.cpp
-ui_*.h
+/src/rpi-app/moc_*.cpp
+/src/rpi-app/ui_*.h
+/src/rpi-app/qrc_resources.cpp
