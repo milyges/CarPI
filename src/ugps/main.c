@@ -5,8 +5,6 @@
 #include <time.h>
 #include <sys/time.h>
 
-time_t _gps_time;
-
 #define GPS_IDX_TIME       0
 #define GPS_IDX_STATUS     1
 #define GPS_IDX_LATITUDE   2
