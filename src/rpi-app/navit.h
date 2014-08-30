@@ -24,6 +24,8 @@ private:
 
     QProcess * _process;
     bool _isStarted;
+    bool _isVisible;
+
     uint32_t _windowID;
 
     explicit Navit(QObject *parent = 0);
@@ -33,6 +35,7 @@ private:
 
 private slots:
     void _navitFinished(int err, QProcess::ExitStatus exitStatus);
+    void _readFromNavit(void);
 
 public:
     static Navit * getInstance(void);
@@ -41,6 +44,7 @@ public:
     void sendKey(enum NavitKey key);
 
     void show(void);
+    void hide(void);
 
     uint32_t getWindowId(void);
 };

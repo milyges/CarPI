@@ -15,38 +15,48 @@ LIBS += -lwiringPi
 
 
 SOURCES += main.cpp\
-        wndmain.cpp \
     carpi.cpp \
     mainboard.cpp \
-    displayemulator.cpp \
-    wndvolume.cpp \
-    wndmenu.cpp \
+    displayemulator.cpp \    
     bluetooth.cpp \
-    wndcall.cpp \
     changeremulator.cpp \
     mp3player.cpp \
     navit.cpp \
     carpidial.cpp \
-    elm327.cpp
+    elm327.cpp \
+    wndmain.cpp \
+    scrolledlabel.cpp \
+    wndvolume.cpp \
+    menumodule.cpp \
+    navigationmodule.cpp \
+    dashboardmodule.cpp \
+    radiomodule.cpp
 
-HEADERS  += wndmain.h \
-    carpi.h \
+HEADERS  += carpi.h \
     mainboard.h \
     displayemulator.h \
-    wndvolume.h \
-    wndmenu.h \
     bluetooth.h \
-    wndcall.h \
     changeremulator.h \
     mp3player.h \
     navit.h \
     carpidial.h \
-    elm327.h
+    elm327.h \
+    wndmain.h \
+    scrolledlabel.h \
+    wndvolume.h \
+    guimodule.h \
+    menumodule.h \
+    navigationmodule.h \
+    dashboardmodule.h \
+    radiomodule.h
 
-FORMS    += wndmain.ui \
+FORMS    += \
+    wndmain.ui \
     wndvolume.ui \
-    wndmenu.ui \
-    wndcall.ui
+    radioModule.ui
 
 RESOURCES += \
     resources.qrc
+
+OTHER_FILES += \
+    themes/default.css

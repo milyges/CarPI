@@ -29,18 +29,15 @@ enum CarPIDialsID {
     dialVoltage
 };
 
-enum CarPIKeyMode {
-    keyModeNormal = 0,
-    keyModeMenu
-};
-
 enum CarPIKey {
-    keyReturn = 0,
-    keyUp,
-    keyRight,
-    keyDown,
-    keyLeft,
-    keyEscape
+    keyLoad = 0,
+    keyVolUp,
+    keyVolDown,
+    keyPause,
+    keySrcL,
+    keySrcR,
+    keyScrollDown,
+    keyScrollUp
 };
 
 class CarPI : public QObject {
@@ -53,7 +50,6 @@ private:
     MP3Player * _mp3Player;
     Navit * _navit;
     Elm327 * _elm327;
-    enum CarPIKeyMode _keyMode;
 
     QList<int> _id2pid;
 
@@ -61,6 +57,7 @@ private:
 
     enum CarPISource _sourceCurrent;
     bool _sourcePaused;
+    QString _lastRadioText;
 
     void _switchToSoruce(enum CarPISource source);
 
@@ -90,8 +87,12 @@ public:
     explicit CarPI(QObject *parent = 0);
     ~CarPI();
 
+    void radioSendKey(CarPIKey key);
+
     void updateStatus(void);
     void setDials(CarpiDial ** dials);
+    enum CarPISource currentSource(void);
+    QString lastRadioText(void);
 
 signals:
     void sourceChanged(enum CarPISource source);
@@ -100,12 +101,13 @@ signals:
 
     void radioTextChanged(QString text);
     void radioIconsChanged(bool news, bool traffic, bool afrds);
+    void radioNewKeyEvent(int keycode);
 
     void menuShow(int items);
     void menuHide(void);
     void menuSetItem(int itemno, QString text, bool isSelected);
 
-    void pilotKeyPressed(int keycode);
+    void pilotKeyPressed(CarPIKey key);
 
     void bluetoothConnectionStateChanged(bool isConnected);
     void bluetoothCallStateChanged(enum BluetoothCallState state);
@@ -120,13 +122,7 @@ signals:
 
     void dialValueChanged(enum CarPIDialsID dialID, double value);
 
-    void changeDisplayMode(void);
-
-    void mainMenuKeyPressed(enum CarPIKey key);
-    void mainMenuEnter(void);
-
 public slots:
-    void mainMenuExit(void);
     void shutdown(void);
 };
 

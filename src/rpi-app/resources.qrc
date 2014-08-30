@@ -13,5 +13,9 @@
         <file>icons/gps_02.png</file>
         <file>icons/gps_03.png</file>
         <file>icons/gps_04.png</file>
+        <file>icons/source_fm_big.png</file>
+        <file>icons/source_bluetooth_big.png</file>
+        <file>icons/source_cd_big.png</file>
+        <file>icons/source_usb_big.png</file>
     </qresource>
 </RCC>

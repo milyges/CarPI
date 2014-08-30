@@ -8,8 +8,6 @@ CarPI::CarPI(QObject * parent): QObject(parent) {
     _sourceCurrent = sourceUnknown;
     _sourcePaused = false;
 
-    _keyMode = keyModeNormal;
-
     /* Kontroler płyty głównej urządzenia */
     _mainboard = MainBoard::getInstance();
 
@@ -43,7 +41,7 @@ CarPI::CarPI(QObject * parent): QObject(parent) {
     connect(_displayEmulator, SIGNAL(displayMenuShow(int)), this, SLOT(_displayMenuShow(int)));
     connect(_displayEmulator, SIGNAL(displayMenuHide()), this, SLOT(_displayMenuHide()));
     connect(_displayEmulator, SIGNAL(displayMenuItemUpdate(int,QString,bool)), this, SLOT(_displayMenuSetItem(int,QString,bool)));
-    connect(this, SIGNAL(pilotKeyPressed(int)), _displayEmulator, SLOT(sendKeyEvent(int)));
+    connect(this, SIGNAL(radioNewKeyEvent(int)), _displayEmulator, SLOT(sendKeyEvent(int)));
 
     connect(_bluetooth, SIGNAL(connectionStateChanged(bool)), this, SLOT(_bluetoothConnectionStateChanged(bool)));
     connect(_bluetooth, SIGNAL(callStateChanged(BluetoothCallState)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState)));
@@ -79,11 +77,31 @@ CarPI::~CarPI() {
 
 }
 
+void CarPI::radioSendKey(CarPIKey key) {
+    switch(key) {
+        case keyLoad: emit radioNewKeyEvent(DISPLAY_KEY_LOAD); break;
+        case keyVolDown: emit radioNewKeyEvent(DISPLAY_KEY_VOLUME_DOWN); break;
+        case keyVolUp: emit radioNewKeyEvent(DISPLAY_KEY_VOLUME_UP); break;
+        case keyPause: emit radioNewKeyEvent(DISPLAY_KEY_PAUSE); break;
+        case keySrcL: emit radioNewKeyEvent(DISPLAY_KEY_SRC_LEFT); break;
+        case keySrcR: emit radioNewKeyEvent(DISPLAY_KEY_SRC_RIGHT); break;
+        case keyScrollDown: emit radioNewKeyEvent(DISPLAY_KEY_ROLL_DOWN); break;
+        case keyScrollUp: emit radioNewKeyEvent(DISPLAY_KEY_ROLL_UP); break;
+    }
+}
+
 void CarPI::updateStatus() {
     _mainboard->readState();
     emit bluetoothConnectionStateChanged(_bluetooth->isConnected());
 }
 
+CarPISource CarPI::currentSource() {
+    return _sourceCurrent;
+}
+
+QString CarPI::lastRadioText() {
+    return _lastRadioText;
+}
 
 void CarPI::_displayTextChanged(QString text) {
     enum CarPISource source = sourceUnknown;
@@ -99,6 +117,7 @@ void CarPI::_displayTextChanged(QString text) {
         if (!_sourcePaused) {
             _sourcePaused = true;
             emit pauseStateChanged(true);
+            _lastRadioText = text;
             emit radioTextChanged(text);
         }
         return;
@@ -136,8 +155,10 @@ void CarPI::_displayTextChanged(QString text) {
         emit sourceChanged(_sourceCurrent);
     }
 
-    if (_sourceCurrent != sourceCDChanger)
+    if (_sourceCurrent != sourceCDChanger) {
+        _lastRadioText = text;
         emit radioTextChanged(text);
+    }
 }
 
 void CarPI::_displayIconsChanged(int iconmask) {
@@ -209,39 +230,28 @@ void CarPI::_bluetoothCallStateChanged(BluetoothCallState state) {
 void CarPI::_pilotKeyStateChanged(int keymask) {
     static int oldKeymask = 0;
     static int timeout = 0;
-    enum BluetoothCallState callState = _bluetooth->callState();
 
     //qDebug() << "CarPI: pilot keymask changed to:" << keymask;
 
     if ((keymask & PILOT_KEY_PAUSE) == PILOT_KEY_VOLUP) {
         //qDebug() << "CarPI: VOL UP";
-        if (callState == callStateIncoming)
-            _bluetooth->acceptCall();
-        else {
-            if (--timeout <= 0) {
-                if (_keyMode == keyModeNormal)
-                    emit pilotKeyPressed(DISPLAY_KEY_VOLUME_UP);
-                else
-                    emit mainMenuKeyPressed(keyUp);
-                timeout = 3;
-            }
+
+        if (--timeout <= 0) {
+            emit pilotKeyPressed(keyVolUp);
+            timeout = 3;
         }
+
         return;
     }
 
     if ((keymask & PILOT_KEY_PAUSE) == PILOT_KEY_VOLDOWN) {
-        //qDebug() << "CarPI: VOL Down";
-        if (callState == callStateIncoming)
-            _bluetooth->rejectCall();
-        else {
-            if (--timeout <= 0) {
-                if (_keyMode == keyModeNormal)
-                    emit pilotKeyPressed(DISPLAY_KEY_VOLUME_DOWN);
-                else
-                    emit mainMenuKeyPressed(keyDown);
-                timeout = 3;
-            }
+        //qDebug() << "CarPI: VOL UP";
+
+        if (--timeout <= 0) {
+            emit pilotKeyPressed(keyVolDown);
+            timeout = 3;
         }
+
         return;
     }
 
@@ -259,44 +269,26 @@ void CarPI::_pilotKeyStateChanged(int keymask) {
 
     timeout = 0;
     if ((keymask & PILOT_KEY_LOAD) == PILOT_KEY_LOAD) { /* Używamy tego klawisza do wejscia/wyjścia w tryb zarządzania CarPI */
-        if (_keyMode == keyModeNormal) {
-            _keyMode = keyModeMenu;
-            emit mainMenuEnter();
-        }
-        else {
-            emit mainMenuKeyPressed(keyEscape);
-        }
+        emit pilotKeyPressed(keyLoad);
     }
 
     if ((keymask & PILOT_KEY_PAUSE) == PILOT_KEY_PAUSE) {
-        if ((callState == callStateOutgoing) || (callState == callStateTalking))
-            _bluetooth->terminateCall();
-        else if (_keyMode == keyModeMenu)
-            emit mainMenuKeyPressed(keyReturn);
-        else {
-            emit pilotKeyPressed(DISPLAY_KEY_PAUSE);
-        }
+        emit pilotKeyPressed(keyPause);
     }
 
     if ((keymask & PILOT_KEY_SOURCE_L) == PILOT_KEY_SOURCE_L) {
-        if (_keyMode == keyModeNormal)
-            emit pilotKeyPressed(DISPLAY_KEY_SRC_LEFT);
-        else
-            emit mainMenuKeyPressed(keyLeft);
+        emit pilotKeyPressed(keySrcL);
     }
     if ((keymask & PILOT_KEY_SOURCE_R) == PILOT_KEY_SOURCE_R) {
-        if (_keyMode == keyModeNormal)
-            emit pilotKeyPressed(DISPLAY_KEY_SRC_RIGHT);
-        else
-            emit mainMenuKeyPressed(keyRight);
+        emit pilotKeyPressed(keySrcR);
     }
 
     if ((keymask & PILOT_ROLL_NEXT) == PILOT_ROLL_NEXT) {
-        emit pilotKeyPressed(DISPLAY_KEY_ROLL_DOWN);
+        emit pilotKeyPressed(keyScrollDown);
     }
 
     if ((keymask & PILOT_ROLL_PREV) == PILOT_ROLL_PREV) {
-        emit pilotKeyPressed(DISPLAY_KEY_ROLL_UP);
+        emit pilotKeyPressed(keyScrollUp);
     }
 
     oldKeymask = keymask;
@@ -383,7 +375,6 @@ void CarPI::_elm327PidChanged(int pid, QVector<int> data) {
 }
 
 void CarPI::_elm327VoltageChanged(double voltage) {
-    //qDebug() << "aaaaa";
     emit dialValueChanged(dialVoltage, voltage);
 }
 
@@ -441,18 +432,13 @@ void CarPI::_switchToSoruce(CarPISource source) {
             break;
 
         if (lcost < rcost) {
-            emit pilotKeyPressed(DISPLAY_KEY_SRC_LEFT);
+            emit radioNewKeyEvent(DISPLAY_KEY_SRC_LEFT);
             i--;
         }
         else {
-            emit pilotKeyPressed(DISPLAY_KEY_SRC_RIGHT);
+            emit radioNewKeyEvent(DISPLAY_KEY_SRC_RIGHT);
             i++;
         }
         QApplication::processEvents();
     }
-}
-
-void CarPI::mainMenuExit(void) {
-    qDebug() << "CarPI: Exit menu mode";
-    _keyMode = keyModeNormal;
 }

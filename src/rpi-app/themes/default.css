@@ -1,0 +1,82 @@
+* {
+    background: #000;
+    color: #ddd;
+    border: none;
+}
+
+#frameTitle {
+    border-style: outset;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-bottom-width: 2px;
+    border-bottom-color: #333;
+    border-left-width: 2px;
+    border-left-color: #333;
+    border-right-width: 2px;
+    border-right-color: #333;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+QProgressBar {
+        border: 2px solid #666;
+        border-radius: 5px;
+        margin-left: 5px;
+        text-align: center;
+        font-size: 18px;
+}
+
+QProgressBar::chunk {
+        background: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #78d, stop: 0.4999 #46a, stop: 0.5 #45a, stop: 1 #238);
+        margin: 0.5px;
+        width: 20px;
+        border-radius: 2px;
+}
+
+MenuItem {
+    color: #ddd;
+    font-size: 18px;
+    padding-left: 5px;
+    min-height: 26px;
+    max-height: 26px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    margin-bottom: 5px;
+    margin-top: 5px;
+    /*border: 1px #fff solid;
+    border-style: outset;*/
+}
+
+MenuItem[selected="true"] {
+    color: #ddd;
+    background: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #78d, stop: 0.4999 #46a, stop: 0.5 #45a, stop: 1 #238);
+}
+
+#lbRadioIcons {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/*
+#lTime {
+    border-style: outset;
+    border-left-width: 2px;
+    border-left-color: #333;
+    border-bottom-left-radius: 5px;
+    border-bottom-width: 2px;
+    border-bottom-color: #333;
+
+}
+
+QMenu {
+	font-size: 20px;
+	background-color: #000;
+	color: #ddd;
+}
+
+QMenu::item::selected {
+	background-color: #ffa500;
+        color: #111;
+}
+
+*/

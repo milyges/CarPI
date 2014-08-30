@@ -11,7 +11,7 @@ Bluetooth::Bluetooth(QObject *parent) : QObject(parent) {
     connect(_mainboard, SIGNAL(bluetoothInt()), this, SLOT(_bluetoothInterrupt()));
 
     _serial = new QSerialPort(this);
-    _serial->setPortName("/dev/ttyUSB1");
+    _serial->setPortName("/dev/ttyUSB2");
     _serial->open(QIODevice::ReadWrite);
     _serial->setBaudRate(QSerialPort::Baud115200);
     _serial->setDataBits(QSerialPort::Data8);

@@ -3,15 +3,18 @@
 
 #include <QDialog>
 #include <QTimer>
-#include <QPoint>
 
 namespace Ui {
     class WndVolume;
 }
 
-class WndVolume : public QDialog {
+class WndVolume : public QDialog
+{
     Q_OBJECT
-    
+private:
+    Ui::WndVolume *_ui;
+    QTimer * _hideTimer;
+
 public:
     explicit WndVolume(QWidget *parent = 0);
     ~WndVolume();
@@ -22,10 +25,7 @@ public slots:
 protected:
     void changeEvent(QEvent *e);
     
-private:
-    Ui::WndVolume *_ui;
-    QTimer * _timer;
-    QPoint _showPoint;
+
 };
 
 #endif // WNDVOLUME_H
