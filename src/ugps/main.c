@@ -6,47 +6,6 @@
 #include <sys/time.h>
 
 time_t _gps_time;
-#if 0
-int sync_time(char * line) {
-	char status;
-	struct tm tm;
-	time_t timestamp;
-	struct timeval timeval;
-	
-	/* Dekodujemy czas podanych przez GPSa */
-	status = line[18];	
-	line[63] = '\0';
-	tm.tm_year = atoi(&line[61]) + 2000 - 1900;
-	line[61] = '\0';
-	tm.tm_mon = atoi(&line[59]) - 1;
-	line[59] = '\0';
-	tm.tm_mday = atoi(&line[57]);
-	line[13] = '\0';
-	tm.tm_sec = atoi(&line[11]);
-	line[11] = '\0';
-	tm.tm_min = atoi(&line[9]);
-	line[9] = '\0';
-	tm.tm_hour = atoi(&line[7]);
-	tm.tm_isdst = -1; 
-	
-	timestamp = mktime(&tm);
-	if (timestamp < 0) {
-		return 0;
-	}
-	
-	if (tm.tm_isdst > 0)
-		timestamp += 3600;
-
-	timeval.tv_sec = timestamp - timezone;
-	timeval.tv_usec = 0;
-	settimeofday(&timeval, NULL);
-	
-	if (status == 'A')
-		return 2000;
-	else
-		return 20;
-}
-#endif
 
 #define GPS_IDX_TIME       0
 #define GPS_IDX_STATUS     1
@@ -70,7 +29,7 @@ time_t _gps_time;
 void parse_gprmc(char * line) {
 	struct tm tm;
 	char * ptr;
-	int count = 0;
+    int count = 0;
 	char * items[20];
 	int tmp;
 	
@@ -80,13 +39,19 @@ void parse_gprmc(char * line) {
 	
 	line += 7;
 	
-	ptr = strtok(line, ",");
-	while(ptr != NULL) {
-		items[count++] = ptr;
-		ptr = strtok(NULL, ",");
-	}
-	
-	if (count != 10) { /* Brakuje jakichś danych, brak fixa? */
+    ptr = line;
+    items[count++] = ptr;
+    while(*ptr) {
+        if (*ptr == ',') {
+            *ptr = '\0';
+            items[count++] = ptr + 1;
+        }
+        ptr++;
+    }
+
+    //printf ("count=%d\n", count);
+
+    if (count != 12) { /* Brakuje jakichś danych, brak fixa? */
 		return;
 	}
 	
@@ -97,6 +62,7 @@ void parse_gprmc(char * line) {
 	tm.tm_min = tmp % 100;
 	tm.tm_hour = tmp / 100;
 	
+    //printf("h=%d,m=%d,s=%d\n", tm.tm_hour, tm.tm_min, tm.tm_sec);
 	/* Status */
 	_gps_isvalid = (items[GPS_IDX_STATUS][0] == 'A');
 	
@@ -122,10 +88,11 @@ void parse_gprmc(char * line) {
 	tmp = atoi(items[GPS_IDX_DATE]);	
 	tm.tm_year = (tmp % 100) + 2000 - 1900;
 	tmp /= 100;
-	tm.tm_mon = tmp % 100;
+    tm.tm_mon = (tmp % 100) - 1;
 	tm.tm_mday = tmp / 100;
 	tm.tm_isdst = -1; 
-	
+    //printf("d=%d,m=%d,y=%d\n", tm.tm_mday, tm.tm_mon, tm.tm_year);
+
 	/* Data i czas na timestamp */
 	_gps_time = mktime(&tm);
 	if (_gps_time < 0) {
@@ -170,10 +137,11 @@ int main(int argc, char * argv[]) {
 		}
 		
 		if (resync_timeout <= 0) {
-			if (_gps_isvalid) {
-				set_time();
+            set_time();
+            if (_gps_isvalid)
 				resync_timeout = 2000;
-			}
+            else
+                resync_timeout = 0;
 		}
 		else {
 			resync_timeout--;
