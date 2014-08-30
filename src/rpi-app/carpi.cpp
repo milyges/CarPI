@@ -145,6 +145,10 @@ void CarPI::_displayTextChanged(QString text) {
     }
     else if ((text == "CD CHANGER  ") || (text.startsWith("CD "))) {
         source = sourceCDChanger;
+        if (_sourceCurrent != source) {
+            text = "USB";
+            emit radioTextChanged(text);
+        }
     }
     else if ((text == "RADIO FM    ")) {
         source = sourceFM;

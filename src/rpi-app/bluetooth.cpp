@@ -28,8 +28,6 @@ Bluetooth::Bluetooth(QObject *parent) : QObject(parent) {
     connect(_reconnectTimer, SIGNAL(timeout()), this, SLOT(_tryReconnectLast()));
 
     _bluetoothInterrupt();
-
-
 }
 
 Bluetooth::~Bluetooth() {

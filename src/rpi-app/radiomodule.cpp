@@ -31,7 +31,13 @@ void RadioModule::keyPressed(CarPIKey key) {
 }
 
 void RadioModule::radioTextChanged(QString text) {
-    _ui->lbTitle->setText(text);
+    if (text.isEmpty()) {
+        _ui->lbIcon->clear();
+        _ui->lbTitle->clear();
+    }
+    else {
+        _ui->lbTitle->setText(text);
+    }
 }
 
 void RadioModule::radioSourceChanged(CarPISource source) {
@@ -40,6 +46,7 @@ void RadioModule::radioSourceChanged(CarPISource source) {
         QPixmap(":/resources/icons/source_cd_big.png"),
         QPixmap(":/resources/icons/source_usb_big.png"),
         QPixmap(":/resources/icons/source_bluetooth_big.png"),
+        QPixmap()
     };
 
     _ui->lbIcon->setPixmap(sources_icons[source]);

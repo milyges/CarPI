@@ -8,3 +8,5 @@
 *.elf
 *.pro.*
 *.eep
+moc_*.cpp
+ui_*.h

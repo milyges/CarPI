@@ -40,7 +40,7 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     connect(item, SIGNAL(triggered()), this, SLOT(_radioScreen()));
     item = _menuModule->addItem(QString::fromUtf8("Wskaźniki"), QPixmap());
     connect(item, SIGNAL(triggered()), this, SLOT(_dashboardScreen()));
-    item = _menuModule->addItem(QString::fromUtf8("Książka telefoniczna"), QPixmap());
+    item = _menuModule->addItem(QString::fromUtf8("Telefon"), QPixmap());
     item = _menuModule->addItem(QString::fromUtf8("Ustawienia"), QPixmap());
 
     _ui->mainWidget->addWidget(_menuModule);
@@ -116,6 +116,7 @@ void WndMain::_radioTextChanged(QString text) {
     if (text.isEmpty()) {
         _ui->lbSourceIcon->clear();
         _ui->lbRadioText->clear();
+        _ui->lbSourceIcon->clear();
     }
     else {
         _ui->lbRadioText->setText(text);
@@ -125,6 +126,10 @@ void WndMain::_radioTextChanged(QString text) {
 void WndMain::_radioIconsChanged(bool news, bool traffic, bool afrds) {
     if ((_currentModule) && (_currentModule->useRadioText())) {
         _currentModule->radioIconsChanged(news, traffic, afrds);
+    }
+
+    if (_radioModule) {
+        _radioModule->radioIconsChanged(news, traffic, afrds);
     }
 }
 
@@ -143,6 +148,7 @@ void WndMain::_sourceChanged(CarPISource source) {
         QPixmap(":/resources/icons/source_cd.png"),
         QPixmap(":/resources/icons/source_usb.png"),
         QPixmap(":/resources/icons/source_bluetooth.png"),
+        QPixmap()
     };
 
     _ui->lbSourceIcon->setPixmap(sources_icons[source]);

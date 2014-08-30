@@ -32,7 +32,7 @@ uint32_t Navit::_searchWindow() {
     }
 
     wid = QString(proc.readLine());
-    qDebug() << "Navit: windowID =" << wid.toInt();
+    //qDebug() << "Navit: windowID =" << wid.toInt();
     return wid.toInt();
 }
 
@@ -46,7 +46,7 @@ void Navit::_navitFinished(int err, QProcess::ExitStatus exitStatus) {
 
 void Navit::_readFromNavit() {
     QString data = QString(_process->readAllStandardOutput());
-    qDebug() << "readFromNavit: data = " << data;
+    //qDebug() << "readFromNavit: data = " << data;
     if (!_windowID) {
         _windowID = data.toInt();
         qDebug() << "Navit: wid =" << _windowID;
