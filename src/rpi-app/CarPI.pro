@@ -30,7 +30,8 @@ SOURCES += main.cpp\
     menumodule.cpp \
     navigationmodule.cpp \
     dashboardmodule.cpp \
-    radiomodule.cpp
+    radiomodule.cpp \ 
+    wndcallinfo.cpp
 
 HEADERS  += carpi.h \
     mainboard.h \
@@ -48,12 +49,14 @@ HEADERS  += carpi.h \
     menumodule.h \
     navigationmodule.h \
     dashboardmodule.h \
-    radiomodule.h
+    radiomodule.h \ 
+    wndcallinfo.h
 
 FORMS    += \
     wndmain.ui \
     wndvolume.ui \
-    radioModule.ui
+    radioModule.ui \ 
+    wndcallinfo.ui
 
 RESOURCES += \
     resources.qrc

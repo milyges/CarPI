@@ -57,6 +57,12 @@ MenuItem[selected="true"] {
     font-weight: bold;
 }
 
+QPushButton {
+    border: 2px solid #666;
+    border-radius: 5px;
+    padding: 1px 5px 1px 1px;
+}
+
 /*
 #lTime {
     border-style: outset;
