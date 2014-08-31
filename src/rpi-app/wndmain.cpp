@@ -23,11 +23,14 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     connect(_carpi, SIGNAL(radioIconsChanged(bool,bool,bool)), this, SLOT(_radioIconsChanged(bool,bool,bool)));
     connect(_carpi, SIGNAL(sourceChanged(CarPISource)), this, SLOT(_sourceChanged(CarPISource)));
     connect(_carpi, SIGNAL(bluetoothConnectionStateChanged(bool)), this, SLOT(_bluetoothStateChanged(bool)));
+    connect(_carpi, SIGNAL(bluetoothCallStateChanged(BluetoothCallState)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState)));
     connect(_carpi, SIGNAL(pilotKeyPressed(CarPIKey)), this, SLOT(_keyPressed(CarPIKey)));
 
     _wndVolume = new WndVolume(this);
 
     connect(_carpi, SIGNAL(volumeChanged(int)), _wndVolume, SLOT(showVolume(int)));
+
+    _wndCallInfo = new WndCallInfo(this);
 
     _currentModule = NULL;
 
@@ -58,8 +61,8 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     _setModule(_radioModule);
     //_setModule(_navigationModule);
 
-    _radioTextChanged("");
-    _bluetoothStateChanged(false);
+    _radioTextChanged(_carpi->lastRadioText());
+    _bluetoothStateChanged(Bluetooth::getInstance()->isConnected());
     _sourceChanged(_carpi->currentSource());
 }
 
@@ -142,6 +145,15 @@ void WndMain::_bluetoothStateChanged(bool connected) {
     _ui->lbBluetoothIcon->setPixmap(bluetooth_icons[connected ? 1 : 0]);
 }
 
+void WndMain::_bluetoothCallStateChanged(BluetoothCallState state) {
+    switch(state) {
+        case callStateIdle: _wndCallInfo->idle(); break;
+        case callStateIncoming: _wndCallInfo->incomingCall(); break;
+        case callStateOutgoing: _wndCallInfo->outgoingCall(); break;
+        case callStateTalking: _wndCallInfo->talking(); break;
+    }
+}
+
 void WndMain::_sourceChanged(CarPISource source) {
     static QPixmap sources_icons[] = {
         QPixmap(":/resources/icons/source_fm.png"),
@@ -158,6 +170,22 @@ void WndMain::_sourceChanged(CarPISource source) {
 }
 
 void WndMain::_keyPressed(CarPIKey key) {
+    BluetoothCallState callState = Bluetooth::getInstance()->callState();
+    if (callState != callStateIdle) { /* W pierwszej kolejnosci sprawdzamy czy nie jest aktywna rozmowa przez BT */
+        if ((callState == callStateIncoming) && (key == keyVolDown)) {
+            Bluetooth::getInstance()->rejectCall();
+            return;
+        }
+        else if ((callState == callStateIncoming) && (key == keyVolUp)) {
+            Bluetooth::getInstance()->acceptCall();
+            return;
+        }
+        else if (((callState == callStateOutgoing) || (callState == callStateTalking)) && (key == keyPause)) {
+            Bluetooth::getInstance()->terminateCall();
+            return;
+        }
+    }
+
     if ((_currentModule) && (_currentModule->useKey(key))) {
         _currentModule->keyPressed(key);
     }

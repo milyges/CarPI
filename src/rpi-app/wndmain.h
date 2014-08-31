@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "carpi.h"
 #include "wndvolume.h"
+#include "wndcallinfo.h"
 #include "guimodule.h"
 #include "menumodule.h"
 #include "navigationmodule.h"
@@ -31,6 +32,7 @@ private:
     Ui::WndMain *_ui;
     CarPI * _carpi;
     WndVolume * _wndVolume;
+    WndCallInfo * _wndCallInfo;
     GuiModule * _currentModule;
     MenuModule * _menuModule;
     NavigationModule * _navigationModule;
@@ -45,6 +47,7 @@ private slots:
     void _radioTextChanged(QString text);
     void _radioIconsChanged(bool news, bool traffic, bool afrds);
     void _bluetoothStateChanged(bool connected);
+    void _bluetoothCallStateChanged(BluetoothCallState state);
     void _sourceChanged(CarPISource source);
     void _keyPressed(CarPIKey key);
     void _updateTime(void);

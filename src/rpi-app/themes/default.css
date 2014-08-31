@@ -19,18 +19,18 @@
 }
 
 QProgressBar {
-        border: 2px solid #666;
-        border-radius: 5px;
-        margin-left: 5px;
-        text-align: center;
-        font-size: 18px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    margin-left: 5px;
+    text-align: center;
+    font-size: 18px;
 }
 
 QProgressBar::chunk {
-        background: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #78d, stop: 0.4999 #46a, stop: 0.5 #45a, stop: 1 #238);
-        margin: 0.5px;
-        width: 20px;
-        border-radius: 2px;
+    background: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #78d, stop: 0.4999 #46a, stop: 0.5 #45a, stop: 1 #238);
+    margin: 0.5px;
+    width: 20px;
+    border-radius: 2px;
 }
 
 MenuItem {
@@ -60,7 +60,7 @@ MenuItem[selected="true"] {
 QPushButton {
     border: 2px solid #666;
     border-radius: 5px;
-    padding: 1px 5px 1px 1px;
+    padding: 2px 5px 2px 2px;
 }
 
 /*
