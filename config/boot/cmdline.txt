@@ -1,0 +1,1 @@
+dwc_otg.microframe_schedule=1 dwc_otg.speed=1 dwc_otg.lpm_enable=0 dwc_otg.fiq_fix_enable=1 root=/dev/mmcblk0p2 ro rootfstype=ext4 elevator=deadline rootwait loglevel=3 console=tty2
