@@ -1,0 +1,14 @@
+# interfaces(5) file used by ifup(8) and ifdown(8)
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+   address 10.1.1.128
+   netmask 255.255.255.0
+   gateway 10.1.1.1
+
+iface can0 inet manual
+   up /sbin/ip link set can0 up type can bitrate 1000000 loopback off
+   down /sbin/ifconfig can0 down
+   
