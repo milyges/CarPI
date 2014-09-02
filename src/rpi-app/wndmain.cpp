@@ -36,15 +36,18 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
 
     _menuModule = new MenuModule();
 
+    _mainMenu = new Menu(_menuModule);
+    _mainMenu->setMenuName(QString::fromUtf8("Menu główne"));
+
     MenuItem * item;
-    item = _menuModule->addItem(QString::fromUtf8("Nawigacja"), QPixmap());
-    connect(item, SIGNAL(triggered()), this, SLOT(_navigationScreen()));
-    item = _menuModule->addItem(QString::fromUtf8("Radio"), QPixmap());
+    item = _mainMenu->addItem(QString::fromUtf8("Radio"), QPixmap(":/resources/icons/menu/radio.png"));
     connect(item, SIGNAL(triggered()), this, SLOT(_radioScreen()));
-    item = _menuModule->addItem(QString::fromUtf8("Wskaźniki"), QPixmap());
+    item = _mainMenu->addItem(QString::fromUtf8("Nawigacja"), QPixmap(":/resources/icons/menu/navigation.png"));
+    connect(item, SIGNAL(triggered()), this, SLOT(_navigationScreen()));    
+    item = _mainMenu->addItem(QString::fromUtf8("Wskaźniki"), QPixmap(":/resources/icons/menu/dashboard.png"));
     connect(item, SIGNAL(triggered()), this, SLOT(_dashboardScreen()));
-    item = _menuModule->addItem(QString::fromUtf8("Telefon"), QPixmap());
-    item = _menuModule->addItem(QString::fromUtf8("Ustawienia"), QPixmap());
+    item = _mainMenu->addItem(QString::fromUtf8("Telefon"), QPixmap(":/resources/icons/menu/phone.png"));
+    item = _mainMenu->addItem(QString::fromUtf8("Ustawienia"), QPixmap(":/resources/icons/menu/settings.png"));
 
     _ui->mainWidget->addWidget(_menuModule);
 

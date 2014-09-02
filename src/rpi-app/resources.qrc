@@ -9,13 +9,14 @@
         <file>icons/source_cd.png</file>
         <file>icons/source_fm.png</file>
         <file>icons/source_usb.png</file>
-        <file>icons/gps_01.png</file>
-        <file>icons/gps_02.png</file>
-        <file>icons/gps_03.png</file>
-        <file>icons/gps_04.png</file>
         <file>icons/source_fm_big.png</file>
         <file>icons/source_bluetooth_big.png</file>
         <file>icons/source_cd_big.png</file>
         <file>icons/source_usb_big.png</file>
+        <file>icons/menu/settings.png</file>
+        <file>icons/menu/dashboard.png</file>
+        <file>icons/menu/navigation.png</file>
+        <file>icons/menu/phone.png</file>
+        <file>icons/menu/radio.png</file>
     </qresource>
 </RCC>

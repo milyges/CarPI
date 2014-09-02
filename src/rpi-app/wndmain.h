@@ -39,6 +39,8 @@ private:
     DashboardModule * _dashboardModule;
     RadioModule * _radioModule;
 
+    Menu * _mainMenu;
+
     QTimer * _updateTimeTimer;
 
     void _setModule(GuiModule * mod);
