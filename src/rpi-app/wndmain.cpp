@@ -39,6 +39,8 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     _mainMenu = new Menu(_menuModule);
     _mainMenu->setMenuName(QString::fromUtf8("Menu główne"));
 
+
+
     MenuItem * item;
     item = _mainMenu->addItem(QString::fromUtf8("Radio"), QPixmap(":/resources/icons/menu/radio.png"));
     connect(item, SIGNAL(triggered()), this, SLOT(_radioScreen()));
@@ -49,6 +51,7 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     item = _mainMenu->addItem(QString::fromUtf8("Telefon"), QPixmap(":/resources/icons/menu/phone.png"));
     item = _mainMenu->addItem(QString::fromUtf8("Ustawienia"), QPixmap(":/resources/icons/menu/settings.png"));
 
+    _menuModule->setRootMenu(_mainMenu);
     _ui->mainWidget->addWidget(_menuModule);
 
     _navigationModule = new NavigationModule();

@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <QTimer>
 #include <QPoint>
+#include <QPropertyAnimation>
 
 namespace Ui {
     class WndVolume;
@@ -26,6 +27,11 @@ private:
     Ui::WndVolume *_ui;
     QTimer * _timer;
     QPoint _showPoint;
+    QPropertyAnimation * _animation;
+
+private slots:
+    void _hide(void);
+
 };
 
 #endif // WNDVOLUME_H
