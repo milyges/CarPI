@@ -34,8 +34,9 @@ Bluetooth::~Bluetooth() {
     delete _serial;
 }
 
-QString Bluetooth::_sendCommand(QString command) {
+QString Bluetooth::_sendCommand(QString command, int expectLines) {
     QString result;
+    int lines = 0;
 
     /* Ten moduł bt jest lekko spierdolony, trzeba troche magii żeby się z nim dogadać */
     do {
@@ -43,6 +44,8 @@ QString Bluetooth::_sendCommand(QString command) {
         _serial->clear();
 
         _serial->write(command.toAscii());
+
+        lines = 0;
 
         do {
             if (!_serial->waitForReadyRead(1000)) {
@@ -52,7 +55,10 @@ QString Bluetooth::_sendCommand(QString command) {
             }
 
             result += QString(_serial->readLine());
-        } while(result.at(result.length() - 1) != '\n');
+            if (result.at(result.length() - 1) == '\n')
+                lines++;
+
+        } while(lines < expectLines);
     } while ((result.trimmed() == "CMD") || (result.trimmed() == "END"));
 
     //qDebug() << "Bleutooth: cmd =" << command.trimmed() << "reply =" << result.trimmed();
@@ -119,6 +125,33 @@ bool Bluetooth::isConnected() {
     return (_connectionState > 0);
 }
 
+int Bluetooth::batteryLevel() {
+    QString data = _sendCommand("GB\r\n");
+    int start, end, val;
+    bool dataOK;
+    if (data.isEmpty()) {
+        return -1;
+    }
+
+    if (!data.startsWith("AGBatteryLevel")) {
+        return -1;
+    }
+
+    start = data.indexOf(QChar('='));
+    end = data.lastIndexOf(QChar('%'));
+
+    if ((start < 0) || (end < 0)) {
+        return -1;
+    }
+
+    val = data.mid(start + 1, end - start - 1).trimmed().toInt(&dataOK);
+    if (!dataOK) {
+        return -1;
+    }
+
+    return val;
+}
+
 
 void Bluetooth::acceptCall() {
     if (_callState == callStateIncoming)
@@ -137,5 +170,15 @@ void Bluetooth::terminateCall() {
 
 void Bluetooth::dialTo(QString number) {
     if (_callState == callStateIdle)
-        _sendCommand(QString("A,%1").arg(number));
+        _sendCommand(QString("A,%1\r\n").arg(number));
+}
+
+void Bluetooth::redialLast() {
+    if (_callState == callStateIdle)
+        _sendCommand("AR\r\n");
+}
+
+void Bluetooth::voiceCommand() {
+    if (_callState == callStateIdle)
+        _sendCommand("P\r\n");
 }

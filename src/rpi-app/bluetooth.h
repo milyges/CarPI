@@ -29,7 +29,7 @@ private:
     explicit Bluetooth(QObject *parent = 0);
     ~Bluetooth();
 
-    QString _sendCommand(QString command);
+    QString _sendCommand(QString command, int expectLines = 1);
 
 private slots:
     void _tryReconnectLast(void);
@@ -40,6 +40,8 @@ public:
     enum BluetoothCallState callState(void);
     bool isConnected(void);
 
+    int batteryLevel(void);
+
 signals:
     void connectionStateChanged(bool isConnected);
     void callStateChanged(enum BluetoothCallState callState);
@@ -49,7 +51,8 @@ public slots:
     void rejectCall(void);
     void terminateCall(void);
     void dialTo(QString number);
-
+    void redialLast(void);
+    void voiceCommand(void);
 };
 
 #endif // BLUETOOTH_H

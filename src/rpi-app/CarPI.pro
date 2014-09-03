@@ -56,7 +56,8 @@ FORMS    += \
     wndmain.ui \
     wndvolume.ui \
     radioModule.ui \ 
-    wndcallinfo.ui
+    wndcallinfo.ui \
+    menumodule.ui
 
 RESOURCES += \
     resources.qrc

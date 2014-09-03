@@ -1,20 +1,21 @@
+#include "ui_menumodule.h"
 #include "menumodule.h"
 #include <QStyle>
 #include <QScrollBar>
 #include <QDebug>
 
-/*****************************************************/
+/*************************************************************************************/
 
-MenuModule::MenuModule(QWidget *parent) : GuiModule(parent) {
+MenuModule::MenuModule(QWidget *parent) : GuiModule(parent), _ui(new Ui::MenuModule) {
     _rootMenu = NULL;
     _activeMenu = NULL;
 
-    _icon = new QLabel(this);
-    _icon->setGeometry(0, 0, 64, 64);
+    _ui->setupUi(this);
+    _ui->lbIcon->clear();
 }
 
 MenuModule::~MenuModule() {
-    delete _icon;
+    delete _ui;
 }
 
 bool MenuModule::useKey(CarPIKey key) {
@@ -37,13 +38,12 @@ void MenuModule::keyPressed(CarPIKey key) {
         return;
 
     switch(key) {
-        case keyVolUp: _activeMenu->setCurrentIndex(_activeMenu->currentIndex() - 1); _updateIcon(); break;
-        case keyVolDown: _activeMenu->setCurrentIndex(_activeMenu->currentIndex() + 1); _updateIcon(); break;
+        case keyVolUp: _setCurrentItem(_activeMenu->currentIndex() - 1); break;
+        case keyVolDown: _setCurrentItem(_activeMenu->currentIndex() + 1); break;
         case keyPause: {
             MenuItem * item = _activeMenu->currentItem();
             if (item->subMenu()) {
-                _activeMenu->hideMenu();
-                _activeMenu = item->subMenu();
+                _setActiveMenu(item->subMenu());
                 _activeMenu->showMenu();
                 resizeEvent(NULL);
             }
@@ -54,8 +54,7 @@ void MenuModule::keyPressed(CarPIKey key) {
         }
         case keyLoad: {
             if (_activeMenu->parentMenu()) {
-                _activeMenu->hideMenu();
-                _activeMenu = _activeMenu->parentMenu();
+                _setActiveMenu(_activeMenu->parentMenu());
                 _activeMenu->show();
                 resizeEvent(NULL);
             }
@@ -69,13 +68,17 @@ void MenuModule::radioTextChanged(QString text) {
 
 }
 
+bool MenuModule::useRadioText() {
+    return false;
+}
+
 void MenuModule::setRootMenu(Menu *menu) {
     if (_activeMenu)
         _activeMenu->hideMenu();
 
     _rootMenu = menu;
-    _activeMenu = menu;
-    menu->showMenu();
+    _setActiveMenu(menu);
+    _activeMenu->showMenu();
     resizeEvent(NULL);
 }
 
@@ -85,38 +88,56 @@ void MenuModule::radioIconsChanged(bool news, bool traffic, bool afrds) {
 
 void MenuModule::resizeEvent(QResizeEvent *event) {
     _updateIcon();
-    _icon->move(10, height() / 2 - _icon->height() / 2);
-
-    if (_activeMenu) {
-        _activeMenu->setGeometry(_icon->width() + _icon->x() + 10, 0, width() / 2, height());
-    }
 }
 
 void MenuModule::_updateIcon() {
     MenuItem * item;
     if (!_activeMenu) {
-        _icon->clear();
+        _ui->lbIcon->clear();
         return;
     }
 
     item = _activeMenu->currentItem();
     if (!item) {
-        _icon->clear();
+        _ui->lbIcon->clear();
         return;
     }
 
-    _icon->setPixmap(item->getIcon());
+    _ui->lbIcon->setPixmap(item->getIcon());
 }
 
-bool MenuModule::useRadioText() {
-    return false;
+void MenuModule::_setActiveMenu(Menu *menu) {
+    if (_activeMenu) {
+        _ui->hlMain->removeWidget(_activeMenu);
+        _activeMenu->hideMenu();
+    }
+
+    _activeMenu = menu;
+    _ui->hlMain->insertWidget(1, _activeMenu);
+    _ui->lbMenuName->setText(_activeMenu->menuName());
 }
 
-/*****************************************************/
+void MenuModule::_setCurrentItem(int item) {
+    if ((_activeMenu->currentItem()) && (_activeMenu->currentItem()->subWidget())) {
+        _ui->vlRight->removeWidget(_activeMenu->currentItem()->subWidget());
+        _activeMenu->currentItem()->subWidget()->hide();
+    }
+
+    _activeMenu->setCurrentIndex(item);
+
+    if ((_activeMenu->currentItem()) && (_activeMenu->currentItem()->subWidget())) {
+        _ui->vlRight->insertWidget(2, _activeMenu->currentItem()->subWidget());
+        _activeMenu->currentItem()->subWidget()->show();
+    }
+    _updateIcon();
+}
+
+
+/*************************************************************************************/
 
 MenuItem * Menu::addItem(QString text, QPixmap icon) {
     MenuItem * item = new MenuItem(this);
-    item->setText(text);
+    item->setText(text);    
     item->setIcon(icon);
     item->adjustSize();
 
@@ -139,6 +160,14 @@ void Menu::clear() {
         delete _items[i];
     }
     _items.clear();
+}
+
+MenuItem *Menu::currentItem() {
+    if ((_currentItemIndex < 0) || (_currentItemIndex >= _items.count())) {
+        return NULL;
+    }
+
+    return _items[_currentItemIndex];
 }
 
 void Menu::setCurrentIndex(int index) {
@@ -206,6 +235,8 @@ Menu::Menu(QWidget *parent, Menu *parentMenu) : QWidget(parent) {
     _currentItemIndex = -1;
     _parent = parentMenu;
     hide();
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setMinimumSize(240, 100);
 }
 
 Menu::~Menu() {
@@ -226,13 +257,14 @@ void Menu::resizeEvent(QResizeEvent *event) {
 }
 
 
-/*****************************************************/
+/*************************************************************************************/
 
 MenuItem::MenuItem(QWidget *parent) : QLabel(parent) {
     _animation = new QPropertyAnimation(this, "geometry");
     _animation->setDuration(500);
     _animation->setEasingCurve(QEasingCurve::OutCirc);
     _subMenu = NULL;
+    _subWidget = NULL;
 }
 
 MenuItem::~MenuItem() {
@@ -266,11 +298,10 @@ Menu *MenuItem::subMenu() {
     return _subMenu;
 }
 
+void MenuItem::setSubWidget(QWidget *widget) {
+    _subWidget = widget;
+}
 
-MenuItem *Menu::currentItem() {
-    if ((_currentItemIndex < 0) || (_currentItemIndex >= _items.count())) {
-        return NULL;
-    }
-
-    return _items[_currentItemIndex];
+QWidget *MenuItem::subWidget() {
+    return _subWidget;
 }

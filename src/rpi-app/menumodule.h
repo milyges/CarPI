@@ -4,14 +4,21 @@
 #include <QWidget>
 #include <QObject>
 #include "guimodule.h"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QScrollArea>
 #include <QVector>
 #include <QLabel>
 #include <QPixmap>
 #include <QFrame>
 #include <QPropertyAnimation>
+#include <QGraphicsOpacityEffect>
 
 class Menu;
+
+namespace Ui {
+    class MenuModule;
+}
 
 class MenuItem : public QLabel {
     Q_OBJECT
@@ -19,6 +26,7 @@ private:
     QPixmap _icon;
     QPropertyAnimation * _animation;
     Menu * _subMenu;
+    QWidget * _subWidget;
 
 public:
     MenuItem(QWidget * parent = 0);
@@ -32,6 +40,9 @@ public:
 
     void setSubMenu(Menu * menu);
     Menu * subMenu(void);
+
+    void setSubWidget(QWidget * widget);
+    QWidget * subWidget(void);
 
 signals:
     void triggered(void);
@@ -71,14 +82,15 @@ public:
 class MenuModule : public GuiModule {
     Q_OBJECT
 private:
-    QLabel * _icon;
-
     Menu * _rootMenu;
     Menu * _activeMenu;
+
+    Ui::MenuModule * _ui;
 
     void _setCurrentItem(int index);
     void resizeEvent(QResizeEvent * event);
     void _updateIcon(void);
+    void _setActiveMenu(Menu * menu);
 
 public:
     explicit MenuModule(QWidget *parent = 0);
