@@ -16,6 +16,10 @@ WndCallInfo::WndCallInfo(QWidget *parent) : QDialog(parent), _ui(new Ui::WndCall
     _durationTimer->setInterval(1000);
     _durationTimer->setSingleShot(false);
     connect(_durationTimer, SIGNAL(timeout()), this, SLOT(_durationTimerTick()));
+
+    _animation = new QPropertyAnimation(this, "geometry");
+    _animation->setDuration(500);
+    _animation->setEasingCurve(QEasingCurve::OutCirc);
 }
 
 WndCallInfo::~WndCallInfo() {
@@ -75,6 +79,10 @@ void WndCallInfo::_durationTimerTick() {
 void WndCallInfo::_showWindow() {
     if (!isVisible()) {
         show();
-        move(_showPoint);
-    }
+        move(_showPoint.x(), _showPoint.y() - height());
+        _animation->stop();
+        _animation->setStartValue(geometry());
+        _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y(), width(), height()));
+        _animation->start();
+    }    
 }

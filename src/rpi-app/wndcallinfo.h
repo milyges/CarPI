@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QPoint>
 #include <QTime>
+#include <QPropertyAnimation>
 
 namespace Ui {
     class WndCallInfo;
@@ -32,6 +33,7 @@ private:
     QTimer * _durationTimer;
     QPoint _showPoint;
     int _callDuration;
+    QPropertyAnimation * _animation;
 
     void _showWindow(void);
 };

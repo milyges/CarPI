@@ -65,6 +65,11 @@ MenuItem[selected="true"] {
     font-weight: bold;
 }
 
+#lbMenuName {
+    font-size: 14px;
+    font-weight: bold;
+}
+
 QPushButton {
     border: 2px solid #666;
     border-radius: 5px;

@@ -50,6 +50,7 @@ private slots:
     void _radioIconsChanged(bool news, bool traffic, bool afrds);
     void _bluetoothStateChanged(bool connected);
     void _bluetoothCallStateChanged(BluetoothCallState state);
+    void _bluetoothCallerIDChanged(QStringList data);
     void _sourceChanged(CarPISource source);
     void _keyPressed(CarPIKey key);
     void _updateTime(void);

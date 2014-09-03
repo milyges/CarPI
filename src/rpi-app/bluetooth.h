@@ -5,6 +5,7 @@
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 #include <QTimer>
+#include <QStringList>
 #include "mainboard.h"
 
 enum BluetoothCallState {
@@ -41,10 +42,12 @@ public:
     bool isConnected(void);
 
     int batteryLevel(void);
+    QStringList callerID(void);
 
 signals:
     void connectionStateChanged(bool isConnected);
     void callStateChanged(enum BluetoothCallState callState);
+    void callerIDChanged(QStringList callerID);
 
 public slots:
     void acceptCall(void);

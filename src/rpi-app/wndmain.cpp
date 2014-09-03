@@ -25,6 +25,7 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     connect(_carpi, SIGNAL(bluetoothConnectionStateChanged(bool)), this, SLOT(_bluetoothStateChanged(bool)));
     connect(_carpi, SIGNAL(bluetoothCallStateChanged(BluetoothCallState)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState)));
     connect(_carpi, SIGNAL(pilotKeyPressed(CarPIKey)), this, SLOT(_keyPressed(CarPIKey)));
+    connect(Bluetooth::getInstance(), SIGNAL(callerIDChanged(QStringList)), this, SLOT(_bluetoothCallerIDChanged(QStringList)));
 
     _wndVolume = new WndVolume(this);
 
@@ -38,8 +39,6 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
 
     _mainMenu = new Menu(_menuModule);
     _mainMenu->setMenuName(QString::fromUtf8("Menu główne"));
-
-
 
     MenuItem * item;
     item = _mainMenu->addItem(QString::fromUtf8("Radio"), QPixmap(":/resources/icons/menu/radio.png"));
@@ -158,6 +157,10 @@ void WndMain::_bluetoothCallStateChanged(BluetoothCallState state) {
         case callStateOutgoing: _wndCallInfo->outgoingCall(); break;
         case callStateTalking: _wndCallInfo->talking(); break;
     }
+}
+
+void WndMain::_bluetoothCallerIDChanged(QStringList data) {
+    _wndCallInfo->setPhoneNumber(data.at(1));
 }
 
 void WndMain::_sourceChanged(CarPISource source) {
