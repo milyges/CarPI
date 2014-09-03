@@ -13,7 +13,7 @@
         <file>icons/source_bluetooth_big.png</file>
         <file>icons/source_cd_big.png</file>
         <file>icons/source_usb_big.png</file>
-        <file>icons/menu/settings.png</file>
+        <file alias="icons/menu/settings.png">icons/menu/settings.png</file>
         <file>icons/menu/dashboard.png</file>
         <file>icons/menu/navigation.png</file>
         <file>icons/menu/phone.png</file>

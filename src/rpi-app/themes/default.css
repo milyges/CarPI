@@ -1,4 +1,9 @@
 * {
+    color: #ddd;
+    border: none;
+}
+
+QMainWindow, QDialog {
     background: #000;
     color: #ddd;
     border: none;
@@ -19,6 +24,7 @@
 }
 
 QProgressBar {
+    background: #000;
     border: 2px solid #666;
     border-radius: 5px;
     margin-left: 5px;
@@ -27,31 +33,33 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #78d, stop: 0.4999 #46a, stop: 0.5 #45a, stop: 1 #238);
+    background: #ffa500;
     margin: 0.5px;
     width: 20px;
     border-radius: 2px;
 }
 
 MenuItem {
-    color: #ddd;
-    font-size: 18px;
+    color: #aaa;
+    font-size: 16px;
+    font-weight: bold;
     padding-left: 5px;
-    min-height: 26px;
-    max-height: 26px;
-    padding-top: 3px;
-    padding-bottom: 3px;
-    margin-bottom: 5px;
-    margin-top: 5px;
-    /*border: 1px #fff solid;
-    border-style: outset;*/
+    min-height: 35px;
+    max-height: 35px;
+    min-width: 220px;
+    max-width: 220px;
+    padding-top: 5px;
+    padding-bottom: 5px;
 }
 
 MenuItem[selected="true"] {
-    color: #ddd;
-    background: QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #78d, stop: 0.4999 #46a, stop: 0.5 #45a, stop: 1 #238);
+    color: #eee;
+    border: 2px solid #ffa500;
+    margin: 0;
+    border-radius: 5px;
+    font-size: 26px;
+    font-weight: normal;
 }
-
 #lbRadioIcons {
     font-size: 12px;
     font-weight: bold;
@@ -62,27 +70,3 @@ QPushButton {
     border-radius: 5px;
     padding: 2px 5px 2px 2px;
 }
-
-/*
-#lTime {
-    border-style: outset;
-    border-left-width: 2px;
-    border-left-color: #333;
-    border-bottom-left-radius: 5px;
-    border-bottom-width: 2px;
-    border-bottom-color: #333;
-
-}
-
-QMenu {
-	font-size: 20px;
-	background-color: #000;
-	color: #ddd;
-}
-
-QMenu::item::selected {
-	background-color: #ffa500;
-        color: #111;
-}
-
-*/

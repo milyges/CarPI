@@ -9,7 +9,12 @@ WndVolume::WndVolume(QWidget *parent) : QDialog(parent), _ui(new Ui::WndVolume) 
 
     _timer = new QTimer(this);
     _timer->setInterval(3000);
-    connect(_timer, SIGNAL(timeout()), this, SLOT(hide()));
+    _timer->setSingleShot(true);
+    connect(_timer, SIGNAL(timeout()), this, SLOT(_hide()));
+
+    _animation = new QPropertyAnimation(this, "geometry");
+    _animation->setDuration(500);
+    _animation->setEasingCurve(QEasingCurve::OutCirc);
 }
 
 WndVolume::~WndVolume() {
@@ -22,9 +27,15 @@ void WndVolume::showVolume(int volume) {
 
     if (!isVisible()) {
         show();
-        move(_showPoint);
+        move(_showPoint.x(), _showPoint.y() + height());
     }
 
+    _animation->stop();
+    _animation->setStartValue(geometry());
+    _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y(), width(), height()));
+    _animation->start();
+    raise();
+    activateWindow();
     _timer->start();
 }
 
@@ -38,4 +49,11 @@ void WndVolume::changeEvent(QEvent *e)
     default:
         break;
     }
+}
+
+void WndVolume::_hide() {
+    _animation->stop();
+    _animation->setStartValue(QRect(_showPoint.x(), _showPoint.y(), width(), height()));
+    _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y() + height(), width(), height()));
+    _animation->start();
 }
