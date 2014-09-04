@@ -44,7 +44,7 @@ CarPI::CarPI(QObject * parent): QObject(parent) {
     connect(this, SIGNAL(radioNewKeyEvent(int)), _displayEmulator, SLOT(sendKeyEvent(int)));
 
     connect(_bluetooth, SIGNAL(connectionStateChanged(bool)), this, SLOT(_bluetoothConnectionStateChanged(bool)));
-    connect(_bluetooth, SIGNAL(callStateChanged(BluetoothCallState,QString)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState,QString));
+    connect(_bluetooth, SIGNAL(callStateChanged(BluetoothCallState,QString)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState,QString)));
 
     connect(_changerEmulator, SIGNAL(playbackStarted()), _mp3Player, SLOT(play()));
     connect(_changerEmulator, SIGNAL(playbackPaused()), _mp3Player, SLOT(pause()));

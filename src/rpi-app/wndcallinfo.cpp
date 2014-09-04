@@ -79,17 +79,18 @@ void WndCallInfo::_durationTimerTick() {
 }
 
 void WndCallInfo::_hide() {
-    _animation->stop();
+    /*_animation->stop();
     _animation->setStartValue(geometry());
-    _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y() - height(), width(), height()));
-    _animation->start();
+    _animation->setEndValue(QRect(_showPoint.x(), -height() - 10, width(), height()));
+    _animation->start();*/
+    hide();
 
 }
 
 void WndCallInfo::_showWindow() {
     if (!isVisible()) {
         show();
-        move(_showPoint.x(), _showPoint.y() - height());        
+        move(_showPoint.x(), -height());
     }    
 
     _animation->stop();

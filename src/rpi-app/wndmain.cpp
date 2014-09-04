@@ -23,7 +23,7 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     connect(_carpi, SIGNAL(radioIconsChanged(bool,bool,bool)), this, SLOT(_radioIconsChanged(bool,bool,bool)));
     connect(_carpi, SIGNAL(sourceChanged(CarPISource)), this, SLOT(_sourceChanged(CarPISource)));
     connect(_carpi, SIGNAL(bluetoothConnectionStateChanged(bool)), this, SLOT(_bluetoothStateChanged(bool)));
-    connect(_carpi, SIGNAL(bluetoothCallStateChanged(BluetoothCallState,QString)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState,QString));
+    connect(_carpi, SIGNAL(bluetoothCallStateChanged(BluetoothCallState,QString)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState,QString)));
     connect(_carpi, SIGNAL(pilotKeyPressed(CarPIKey)), this, SLOT(_keyPressed(CarPIKey)));
 
     _wndVolume = new WndVolume(this);

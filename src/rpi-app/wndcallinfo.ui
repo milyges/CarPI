@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>346</width>
-    <height>114</height>
+    <height>130</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -120,7 +120,7 @@
         <string>Volume +</string>
        </property>
        <property name="icon">
-        <iconset>
+        <iconset resource="resources.qrc">
          <normaloff>:/resources/icons/call-start.png</normaloff>:/resources/icons/call-start.png</iconset>
        </property>
        <property name="iconSize">
@@ -159,7 +159,7 @@
         <string>Volume -</string>
        </property>
        <property name="icon">
-        <iconset>
+        <iconset resource="resources.qrc">
          <normaloff>:/resources/icons/call-stop.png</normaloff>:/resources/icons/call-stop.png</iconset>
        </property>
        <property name="iconSize">
@@ -180,6 +180,8 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

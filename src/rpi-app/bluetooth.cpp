@@ -21,7 +21,7 @@ Bluetooth::Bluetooth(QObject *parent) : QObject(parent) {
 
     _mainboard->bluetoothSetMode(true);
     _serial->clear();
-
+    _serial->write("\r\n\r\n"); /* Asekuracyjnie, zeby na pewno nic nie bylo wpisane */
     _reconnectTimer = new QTimer(this);
     _reconnectTimer->setInterval(10000);
     _reconnectTimer->setSingleShot(false);
@@ -38,6 +38,7 @@ QString Bluetooth::_sendCommand(QString command, int expectLines) {
     QString result;
     int lines = 0;
 
+    qDebug() << "BT: _sendCommand(" << command << "," << expectLines << ");";
     /* Ten moduł bt jest lekko spierdolony, trzeba troche magii żeby się z nim dogadać */
     do {
         result = "";
@@ -49,7 +50,7 @@ QString Bluetooth::_sendCommand(QString command, int expectLines) {
 
         do {
             if (!_serial->waitForReadyRead(1000)) {
-                qDebug() << "Bluetooth: _send_command(): timeout";
+                qDebug() << "Bluetooth: _send_command(): timeout, result =" << result;
                 result = "";
                 break;
             }
@@ -61,7 +62,7 @@ QString Bluetooth::_sendCommand(QString command, int expectLines) {
         } while(lines < expectLines);
     } while ((result.trimmed() == "CMD") || (result.trimmed() == "END"));
 
-    //qDebug() << "Bleutooth: cmd =" << command.trimmed() << "reply =" << result.trimmed();
+    qDebug() << "BT: cmd =" << command.trimmed() << "reply =" << result.trimmed();
 
     return result.trimmed();
 }
@@ -101,6 +102,20 @@ void Bluetooth::_bluetoothInterrupt() {
         number = _callerID();
     }
 
+    switch(state[1] & 0x0F) {
+        case 0x04: callState = callStateOutgoing; break;
+        case 0x05: callState = callStateIncoming; break;
+        case 0x06:
+        case 0x0C: callState = callStateTalking; break;
+        default: callState = callStateIdle;
+    }
+
+    if ((callState != _callState) || ((state[0] != _connectionState) && (state[0] & (1 << 4)))) {
+        _callState = callState;
+        //qDebug() << "bt: number =" << number;
+        emit callStateChanged(callState, number);
+    }
+
     if (state[0] != _connectionState) {
         _connectionState = state[0];
 
@@ -112,18 +127,6 @@ void Bluetooth::_bluetoothInterrupt() {
             _reconnectTimer->start();
     }
 
-    switch(state[1] & 0x0F) {
-        case 0x04: callState = callStateOutgoing; break;
-        case 0x05: callState = callStateIncoming; break;
-        case 0x06:
-        case 0x0C: callState = callStateTalking; break;
-        default: callState = callStateIdle;
-    }
-
-    if ((callState != _callState) || ((state[0] != _connectionState) && (state[0] & (1 << 4)))) {
-        _callState = callState;
-        emit callStateChanged(callState, number);
-    }
 }
 
 Bluetooth *Bluetooth::getInstance() {
