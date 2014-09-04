@@ -70,7 +70,7 @@ private slots:
     void _displayMenuSetItem(int itemno, QString text, bool isSelected);
 
     void _bluetoothConnectionStateChanged(bool isConnected);
-    void _bluetoothCallStateChanged(enum BluetoothCallState state);
+    void _bluetoothCallStateChanged(enum BluetoothCallState state, QString number);
 
     void _pilotKeyStateChanged(int keymask);
 
@@ -110,7 +110,7 @@ signals:
     void pilotKeyPressed(CarPIKey key);
 
     void bluetoothConnectionStateChanged(bool isConnected);
-    void bluetoothCallStateChanged(enum BluetoothCallState state);
+    void bluetoothCallStateChanged(enum BluetoothCallState state, QString number);
 
     void mp3PlayerNextAlbum(void);
     void mp3PlayerPrevAlbum(void);

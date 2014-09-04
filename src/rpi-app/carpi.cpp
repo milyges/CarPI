@@ -44,7 +44,7 @@ CarPI::CarPI(QObject * parent): QObject(parent) {
     connect(this, SIGNAL(radioNewKeyEvent(int)), _displayEmulator, SLOT(sendKeyEvent(int)));
 
     connect(_bluetooth, SIGNAL(connectionStateChanged(bool)), this, SLOT(_bluetoothConnectionStateChanged(bool)));
-    connect(_bluetooth, SIGNAL(callStateChanged(BluetoothCallState)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState)));
+    connect(_bluetooth, SIGNAL(callStateChanged(BluetoothCallState,QString)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState,QString));
 
     connect(_changerEmulator, SIGNAL(playbackStarted()), _mp3Player, SLOT(play()));
     connect(_changerEmulator, SIGNAL(playbackPaused()), _mp3Player, SLOT(pause()));
@@ -215,7 +215,7 @@ void CarPI::_bluetoothConnectionStateChanged(bool isConnected) {
     emit bluetoothConnectionStateChanged(isConnected);
 }
 
-void CarPI::_bluetoothCallStateChanged(BluetoothCallState state) {
+void CarPI::_bluetoothCallStateChanged(BluetoothCallState state, QString number) {
     static enum CarPISource oldSource = sourceUnknown;
 
     if ((state == callStateOutgoing) || (state == callStateIncoming)) {
@@ -228,7 +228,7 @@ void CarPI::_bluetoothCallStateChanged(BluetoothCallState state) {
         oldSource = sourceUnknown;
     }
 
-    emit bluetoothCallStateChanged(state);
+    emit bluetoothCallStateChanged(state, number);
 }
 
 void CarPI::_pilotKeyStateChanged(int keymask) {

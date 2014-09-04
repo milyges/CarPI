@@ -10,7 +10,7 @@ WndCallInfo::WndCallInfo(QWidget *parent) : QDialog(parent), _ui(new Ui::WndCall
     _hideTimer = new QTimer(this);
     _hideTimer->setInterval(2000);
     _hideTimer->setSingleShot(true);
-    connect(_hideTimer, SIGNAL(timeout()), this, SLOT(hide()));
+    connect(_hideTimer, SIGNAL(timeout()), this, SLOT(_hide()));
 
     _durationTimer = new QTimer(this);
     _durationTimer->setInterval(1000);
@@ -26,14 +26,16 @@ WndCallInfo::~WndCallInfo() {
     delete _ui;
 }
 
-void WndCallInfo::setPhoneNumber(QString number) {
-    _ui->lbPhoneNumber->setText(number);
-}
-
-void WndCallInfo::incomingCall() {
+void WndCallInfo::incomingCall(QString number) {
     _showWindow();
     _ui->lbCallState->setText(QString::fromUtf8("Połączenie przychodzące"));
-    _ui->lbPhoneNumber->clear();
+    if (number.isEmpty()) {
+        _ui->lbPhoneNumber->clear();
+    }
+    else {
+        _ui->lbPhoneNumber->setText(number);
+    }
+
     _ui->lbCallTime->clear();
     _ui->pbAccept->show();
     _ui->pbReject->show();
@@ -76,13 +78,22 @@ void WndCallInfo::_durationTimerTick() {
     _callDuration++;
 }
 
+void WndCallInfo::_hide() {
+    _animation->stop();
+    _animation->setStartValue(geometry());
+    _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y() - height(), width(), height()));
+    _animation->start();
+
+}
+
 void WndCallInfo::_showWindow() {
     if (!isVisible()) {
         show();
-        move(_showPoint.x(), _showPoint.y() - height());
-        _animation->stop();
-        _animation->setStartValue(geometry());
-        _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y(), width(), height()));
-        _animation->start();
+        move(_showPoint.x(), _showPoint.y() - height());        
     }    
+
+    _animation->stop();
+    _animation->setStartValue(geometry());
+    _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y(), width(), height()));
+    _animation->start();
 }

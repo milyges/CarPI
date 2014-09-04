@@ -23,9 +23,8 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     connect(_carpi, SIGNAL(radioIconsChanged(bool,bool,bool)), this, SLOT(_radioIconsChanged(bool,bool,bool)));
     connect(_carpi, SIGNAL(sourceChanged(CarPISource)), this, SLOT(_sourceChanged(CarPISource)));
     connect(_carpi, SIGNAL(bluetoothConnectionStateChanged(bool)), this, SLOT(_bluetoothStateChanged(bool)));
-    connect(_carpi, SIGNAL(bluetoothCallStateChanged(BluetoothCallState)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState)));
+    connect(_carpi, SIGNAL(bluetoothCallStateChanged(BluetoothCallState,QString)), this, SLOT(_bluetoothCallStateChanged(BluetoothCallState,QString));
     connect(_carpi, SIGNAL(pilotKeyPressed(CarPIKey)), this, SLOT(_keyPressed(CarPIKey)));
-    connect(Bluetooth::getInstance(), SIGNAL(callerIDChanged(QStringList)), this, SLOT(_bluetoothCallerIDChanged(QStringList)));
 
     _wndVolume = new WndVolume(this);
 
@@ -64,7 +63,6 @@ WndMain::WndMain(CarPI *parent) : QMainWindow(), _ui(new Ui::WndMain) {
     _ui->mainWidget->addWidget(_radioModule);
 
     _setModule(_radioModule);
-    //_setModule(_navigationModule);
 
     _radioTextChanged(_carpi->lastRadioText());
     _bluetoothStateChanged(Bluetooth::getInstance()->isConnected());
@@ -150,17 +148,13 @@ void WndMain::_bluetoothStateChanged(bool connected) {
     _ui->lbBluetoothIcon->setPixmap(bluetooth_icons[connected ? 1 : 0]);
 }
 
-void WndMain::_bluetoothCallStateChanged(BluetoothCallState state) {
+void WndMain::_bluetoothCallStateChanged(BluetoothCallState state, QString number) {
     switch(state) {
         case callStateIdle: _wndCallInfo->idle(); break;
-        case callStateIncoming: _wndCallInfo->incomingCall(); break;
+        case callStateIncoming: _wndCallInfo->incomingCall(number); break;
         case callStateOutgoing: _wndCallInfo->outgoingCall(); break;
         case callStateTalking: _wndCallInfo->talking(); break;
     }
-}
-
-void WndMain::_bluetoothCallerIDChanged(QStringList data) {
-    _wndCallInfo->setPhoneNumber(data.at(1));
 }
 
 void WndMain::_sourceChanged(CarPISource source) {

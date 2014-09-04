@@ -18,14 +18,14 @@ public:
     explicit WndCallInfo(QWidget *parent = 0);
     ~WndCallInfo();
 
-    void setPhoneNumber(QString number);
-    void incomingCall(void);
+    void incomingCall(QString number = QString());
     void outgoingCall(void);
     void talking(void);
     void idle(void);
 
 private slots:
     void _durationTimerTick(void);
+    void _hide(void);
 
 private:
     Ui::WndCallInfo * _ui;

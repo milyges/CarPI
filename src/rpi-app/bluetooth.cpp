@@ -66,6 +66,19 @@ QString Bluetooth::_sendCommand(QString command, int expectLines) {
     return result.trimmed();
 }
 
+QString Bluetooth::_callerID() {
+    QStringList data = _sendCommand("T\r\n", 3).split("\r\n");
+    QString number;
+
+    for(int i = 0; i < data.count(); i++) {
+        if (data.at(i).startsWith("Number=")) {
+            number = data.at(i).mid(data.at(i).indexOf("=") + 1);
+        }
+    }
+
+    return number;
+}
+
 void Bluetooth::_tryReconnectLast() {
     _sendCommand("B\r\n");
 }
@@ -73,6 +86,7 @@ void Bluetooth::_tryReconnectLast() {
 void Bluetooth::_bluetoothInterrupt() {
     QString status;
     int state[2];
+    QString number;
     enum BluetoothCallState callState;
 
     status = _sendCommand("Q\r\n");
@@ -83,16 +97,16 @@ void Bluetooth::_bluetoothInterrupt() {
     state[0] = status.left(2).toUInt(NULL, 16); /* Status połączenia z telefonem */
     state[1] = status.right(2).toUInt(NULL, 16); /* Status rozmowy */
 
+    if (state[0] & (1 << 4)) {
+        number = _callerID();
+    }
+
     if (state[0] != _connectionState) {
         _connectionState = state[0];
 
-        emit connectionStateChanged(state[0] > 0);
+        emit connectionStateChanged((state[0] & 0x0F) > 0);
 
-        if (state[0] & (1 << 4)) {
-            emit callerIDChanged(callerID());
-        }
-
-        if (state[0] > 0)
+        if ((state[0] & 0x0F) > 0)
             _reconnectTimer->stop();
         else
             _reconnectTimer->start();
@@ -106,9 +120,9 @@ void Bluetooth::_bluetoothInterrupt() {
         default: callState = callStateIdle;
     }
 
-    if (callState != _callState) {
+    if ((callState != _callState) || ((state[0] != _connectionState) && (state[0] & (1 << 4)))) {
         _callState = callState;
-        emit callStateChanged(callState);
+        emit callStateChanged(callState, number);
     }
 }
 
@@ -154,23 +168,6 @@ int Bluetooth::batteryLevel() {
 
     return val;
 }
-
-QStringList Bluetooth::callerID() {
-    QStringList data = _sendCommand("T\r\n", 3).split("\r\n");
-    QString result[2] = { QString("Unknown"), QString("Unknown") };
-
-    for(int i = 0; i < data.count(); i++) {
-        if (data.at(i).startsWith("Name=")) {
-            result[0] = data.at(i).mid(data.at(i).indexOf("=") + 1);
-        }
-        else if (data.at(i).startsWith("Number=")) {
-            result[1] = data.at(i).mid(data.at(i).indexOf("=") + 1);
-        }
-    }
-
-    return QStringList() << result[0] << result[1];
-}
-
 
 void Bluetooth::acceptCall() {
     if (_callState == callStateIncoming)

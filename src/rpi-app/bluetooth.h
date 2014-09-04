@@ -31,6 +31,7 @@ private:
     ~Bluetooth();
 
     QString _sendCommand(QString command, int expectLines = 1);
+    QString _callerID(void);
 
 private slots:
     void _tryReconnectLast(void);
@@ -41,13 +42,11 @@ public:
     enum BluetoothCallState callState(void);
     bool isConnected(void);
 
-    int batteryLevel(void);
-    QStringList callerID(void);
+    int batteryLevel(void);    
 
 signals:
     void connectionStateChanged(bool isConnected);
-    void callStateChanged(enum BluetoothCallState callState);
-    void callerIDChanged(QStringList callerID);
+    void callStateChanged(enum BluetoothCallState callState, QString number);
 
 public slots:
     void acceptCall(void);
