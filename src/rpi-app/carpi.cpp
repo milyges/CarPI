@@ -217,15 +217,19 @@ void CarPI::_bluetoothConnectionStateChanged(bool isConnected) {
 
 void CarPI::_bluetoothCallStateChanged(BluetoothCallState state, QString number) {
     static enum CarPISource oldSource = sourceUnknown;
+    static enum BluetoothCallState oldState = callStateIdle;
 
-    if ((state == callStateOutgoing) || (state == callStateIncoming)) {
-        oldSource = _sourceCurrent;
+    if (state != oldState) {
+        if ((state == callStateOutgoing) || (state == callStateIncoming)) {
+            oldSource = _sourceCurrent;
+            _switchToSoruce(sourceAUX);
+        }
+        else if ((state == callStateIdle) && (oldSource != sourceUnknown)) {
+            _switchToSoruce(oldSource);
+            oldSource = sourceUnknown;
+        }
 
-        _switchToSoruce(sourceAUX);
-    }
-    else if ((state == callStateIdle) && (oldSource != sourceUnknown)) {
-        _switchToSoruce(oldSource);
-        oldSource = sourceUnknown;
+        oldState = state;
     }
 
     emit bluetoothCallStateChanged(state, number);
