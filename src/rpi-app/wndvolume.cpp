@@ -27,7 +27,7 @@ void WndVolume::showVolume(int volume) {
 
     if (!isVisible()) {
         show();
-        move(_showPoint.x(), _showPoint.y() + height());
+        move(_showPoint.x(), _showPoint.y() + height() + 5);
     }
 
     _animation->stop();
@@ -54,6 +54,6 @@ void WndVolume::changeEvent(QEvent *e)
 void WndVolume::_hide() {
     _animation->stop();
     _animation->setStartValue(QRect(_showPoint.x(), _showPoint.y(), width(), height()));
-    _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y() + height(), width(), height()));
+    _animation->setEndValue(QRect(_showPoint.x(), _showPoint.y() + height() + 5, width(), height()));
     _animation->start();
 }

@@ -1,9 +1,9 @@
 #ifndef RADIOMODULE_H
 #define RADIOMODULE_H
 
+#include "ui_radioModule.h"
 #include "guimodule.h"
 #include "scrolledlabel.h"
-#include "ui_radioModule.h"
 #include "carpi.h"
 
 class RadioModule : public GuiModule {

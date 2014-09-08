@@ -23,8 +23,9 @@ bool NavigationModule::useKey(CarPIKey key) {
 }
 
 void NavigationModule::activate() {
+    _navit->setGeometry(QRect(0, 31, 480, 272 - 31));
+    _navit->sendKey(navitKeyReturn);
     _navit->show();
-    _navit->sendKey(navitReturn);
     _inMenu = true;
     _inMenuDetectTimer->start(1000);
 }
@@ -37,12 +38,12 @@ void NavigationModule::deactivate() {
 
 void NavigationModule::keyPressed(CarPIKey key) {
     switch(key) {
-        case keyVolUp: _navit->sendKey(navitUp); break;
-        case keySrcR: _navit->sendKey(navitRight); break;
-        case keyVolDown: _navit->sendKey(navitDown); break;
-        case keySrcL: _navit->sendKey(navitLeft); break;
-        case keyPause: _navit->sendKey(navitReturn); break;
-        case keyLoad: _navit->sendKey(navitEscape); break;
+        case keyVolUp: _navit->sendKey(navitKeyUp); break;
+        case keySrcR: _navit->sendKey(navitKeyRight); break;
+        case keyVolDown: _navit->sendKey(navitKeyDown); break;
+        case keySrcL: _navit->sendKey(navitKeyLeft); break;
+        case keyPause: _navit->sendKey(navitKeyReturn); break;
+        case keyLoad: _navit->sendKey(navitKeyEscape); break;
         default: { }
     }
 }
@@ -62,7 +63,7 @@ void NavigationModule::_inMenuDetect() {
     QRgb pixel;
 
     _inMenuDetectTimer->setInterval(500);
-    navitScreen = QPixmap::grabWindow(Navit::getInstance()->getWindowId(), 470, 2, -1, 1);
+    navitScreen = QPixmap::grabWindow(_navit->windowID(), 470, 2, -1, 1);
     img = navitScreen.toImage();
     pixel = img.pixel(img.width() - 1, 0);
     if (pixel != 0xFF424142) { /* Wyjście z menu */

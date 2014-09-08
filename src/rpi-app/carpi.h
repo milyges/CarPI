@@ -8,9 +8,11 @@
 #include "bluetooth.h"
 #include "changeremulator.h"
 #include "mp3player.h"
-#include "navit.h"
 #include "elm327.h"
 #include "carpidial.h"
+//#include "navit.h"
+
+class Navit;
 
 enum CarPISource {
     sourceFM = 0,

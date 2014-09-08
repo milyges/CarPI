@@ -1,5 +1,5 @@
-#include "wndmain.h"
 #include "ui_wndmain.h"
+#include "wndmain.h"
 #include <QTime>
 #include <QDebug>
 
@@ -77,7 +77,6 @@ WndMain::~WndMain() {
 }
 
 void WndMain::start() {
-
     showFullScreen();
 }
 

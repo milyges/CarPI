@@ -2,15 +2,15 @@
 #define WNDMAIN_H
 
 #include <QMainWindow>
-#include "carpi.h"
+#include <QTimer>
 #include "wndvolume.h"
 #include "wndcallinfo.h"
 #include "guimodule.h"
 #include "menumodule.h"
-#include "navigationmodule.h"
 #include "dashboardmodule.h"
 #include "radiomodule.h"
-#include <QTimer>
+#include "carpi.h"
+#include "navigationmodule.h"
 
 namespace Ui {
     class WndMain;

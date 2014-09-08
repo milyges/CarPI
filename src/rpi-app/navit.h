@@ -2,51 +2,72 @@
 #define NAVIT_H
 
 #include <QObject>
-#include <QX11EmbedContainer>
 #include <QProcess>
-#include <QWidget>
 #include <QTimer>
-#include <stdint.h>
+#include <QVector>
+#include <QRect>
+#include <QPoint>
+#include <X11/Xlib.h>
 
 enum NavitKey {
-    navitUp = 1,
-    navitRight,
-    navitDown,
-    navitLeft,
-    navitReturn,
-    navitEscape
+    navitKeyNone = 0,
+    navitKeyReturn,
+    navitKeyEscape,
+    navitKeyUp,
+    navitKeyRight,
+    navitKeyDown,
+    navitKeyLeft
 };
 
 class Navit : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QRect geometry READ geometry WRITE setGeometry)
+
 private:
+    static const int _expectWindows = 2; /* Ilość okien navita jakie powinnismy znalezc */
     static Navit * _instance;
 
-    QProcess * _process;
-    bool _isStarted;
-    bool _isVisible;
+    QProcess * _proc;
+    bool _isRunning;
+    Window _wndID;
+    QVector<Window> _navitWindows;
+    QTimer * _searchTimer;
 
-    uint32_t _windowID;
+    /* Informacje o oknie */
+    bool _isVisible;
+    QRect _geometry;
 
     explicit Navit(QObject *parent = 0);
-    ~Navit(void);
+    ~Navit();
 
-    uint32_t  _searchWindow(void);
+    void _sendKeyEvent(bool press, int keycode, int mod);
 
 private slots:
-    void _navitFinished(int err, QProcess::ExitStatus exitStatus);
-    void _readFromNavit(void);
+    void _searchWindow(Window startWinID = 0);
+    void _navitFinished(int code);
 
 public:
     static Navit * getInstance(void);
+
+    QRect geometry();
+    void setGeometry(QRect geom);
+
+    Window windowID(void);
+
+signals:
+
+public slots:
     void start(void);
     void stop(void);
-    void sendKey(enum NavitKey key);
 
     void show(void);
     void hide(void);
+    void raise(void);
 
-    uint32_t getWindowId(void);
+    void move(int x, int y);
+    void resize(int w, int h);
+
+    void sendKey(enum NavitKey key);
 };
 
 #endif // NAVIT_H

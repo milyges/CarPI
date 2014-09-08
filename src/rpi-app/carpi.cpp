@@ -1,6 +1,7 @@
 #include "carpi.h"
 #include <QDebug>
 #include <QApplication>
+#include "navit.h"
 
 CarPI::CarPI(QObject * parent): QObject(parent) {
     qDebug() << "CarPI: Starting";
